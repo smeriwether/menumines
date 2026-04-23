@@ -48,6 +48,11 @@ struct StatsWindow: View {
 
     private var metricsSection: some View {
         VStack(spacing: 16) {
+            DailyCompletionCalendarView(dailyResultsBySeed: store.dailyResultsBySeed)
+
+            Divider()
+                .padding(.vertical, 4)
+
             // Daily Puzzles Section
             VStack(alignment: .leading, spacing: 12) {
                 Text(String(localized: "stats_section_daily"))
@@ -181,6 +186,181 @@ struct StatsWindow: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Daily Completion Calendar
+
+private struct DailyCompletionCalendarView: View {
+    let dailyResultsBySeed: [Int64: GameResult]
+
+    @State private var displayedMonth = Self.monthStart(for: Date())
+
+    private static var utcCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        calendar.firstWeekday = Calendar.current.firstWeekday
+        return calendar
+    }
+
+    private var calendar: Calendar {
+        Self.utcCalendar
+    }
+
+    private var monthTitle: String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = .gmt
+        formatter.locale = .current
+        formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMMM yyyy", options: 0, locale: .current) ?? "MMMM yyyy"
+        return formatter.string(from: displayedMonth)
+    }
+
+    private var weekdaySymbols: [String] {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = .gmt
+        formatter.locale = .current
+        let symbols = formatter.veryShortStandaloneWeekdaySymbols ?? formatter.veryShortWeekdaySymbols ?? []
+        guard symbols.count == 7 else { return [] }
+
+        let firstIndex = calendar.firstWeekday - 1
+        return Array(symbols[firstIndex...]) + Array(symbols[..<firstIndex])
+    }
+
+    private var monthDays: [Date?] {
+        guard let range = calendar.range(of: .day, in: .month, for: displayedMonth) else { return [] }
+
+        let firstWeekday = calendar.component(.weekday, from: displayedMonth)
+        let leadingEmptyDays = (firstWeekday - calendar.firstWeekday + 7) % 7
+        let days = range.compactMap { day -> Date? in
+            calendar.date(byAdding: .day, value: day - 1, to: displayedMonth)
+        }
+
+        return Array(repeating: nil, count: leadingEmptyDays) + days
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(String(localized: "stats_calendar_title"))
+                    .font(.headline)
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Button {
+                        moveMonth(by: -1)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(String(localized: "stats_calendar_previous_month"))
+
+                    Text(monthTitle)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .frame(minWidth: 120)
+                        .accessibilityLabel(String(format: String(localized: "stats_calendar_month_accessibility"), monthTitle))
+
+                    Button {
+                        moveMonth(by: 1)
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(String(localized: "stats_calendar_next_month"))
+                }
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(24), spacing: 6), count: 7), spacing: 6) {
+                ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
+                    Text(symbol)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, height: 14)
+                        .accessibilityHidden(true)
+                }
+
+                ForEach(Array(monthDays.enumerated()), id: \.offset) { _, date in
+                    if let date {
+                        CalendarDayBox(
+                            date: date,
+                            result: dailyResultsBySeed[seedFromDate(date)],
+                            calendar: calendar
+                        )
+                    } else {
+                        Color.clear
+                            .frame(width: 24, height: 24)
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private static func monthStart(for date: Date) -> Date {
+        let calendar = utcCalendar
+        let components = calendar.dateComponents([.year, .month], from: date)
+        return calendar.date(from: components) ?? date
+    }
+
+    private func moveMonth(by value: Int) {
+        guard let newMonth = calendar.date(byAdding: .month, value: value, to: displayedMonth) else {
+            return
+        }
+        displayedMonth = Self.monthStart(for: newMonth)
+    }
+}
+
+private struct CalendarDayBox: View {
+    let date: Date
+    let result: GameResult?
+    let calendar: Calendar
+
+    private var dayNumber: Int {
+        calendar.component(.day, from: date)
+    }
+
+    private var fillColor: Color {
+        guard let result else { return Color(nsColor: .separatorColor).opacity(0.25) }
+        return result.won ? .accentColor : .red
+    }
+
+    private var foregroundColor: Color {
+        result == nil ? .secondary : .white
+    }
+
+    private var accessibilityLabel: String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = .gmt
+        formatter.locale = .current
+        formatter.dateStyle = .full
+        formatter.timeStyle = .none
+        let dateString = formatter.string(from: date)
+
+        guard let result else {
+            return String(format: String(localized: "stats_calendar_day_not_played"), dateString)
+        }
+
+        if result.won {
+            return String(format: String(localized: "stats_calendar_day_won"), dateString)
+        } else {
+            return String(format: String(localized: "stats_calendar_day_lost"), dateString)
+        }
+    }
+
+    var body: some View {
+        Text(dayNumber.formatted())
+            .font(.caption2)
+            .fontWeight(result == nil ? .regular : .semibold)
+            .monospacedDigit()
+            .foregroundStyle(foregroundColor)
+            .frame(width: 24, height: 24)
+            .background(fillColor, in: RoundedRectangle(cornerRadius: 4))
+            .accessibilityLabel(accessibilityLabel)
     }
 }
 

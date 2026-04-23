@@ -38,28 +38,37 @@ struct CellView: View {
     // MARK: - Accessibility
 
     private var accessibilityLabel: String {
-        let position = "Row \(row + 1), Column \(col + 1)"
-
         if cell.isExploded {
-            return "\(position), exploded mine"
+            return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_exploded_mine"))
         }
 
         switch cell.state {
         case .hidden:
-            return "\(position), covered"
+            return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_covered"))
         case .flagged:
-            return "\(position), flagged"
+            return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_flagged"))
         case .revealed(let adjacentMines):
             if cell.hasMine {
-                return "\(position), mine"
+                return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_mine"))
             } else if adjacentMines == 0 {
-                return "\(position), empty"
+                return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_empty"))
             } else if adjacentMines == 1 {
-                return "\(position), 1 adjacent mine"
+                return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_one_mine"))
             } else {
-                return "\(position), \(adjacentMines) adjacent mines"
+                return formattedAccessibilityLabel(
+                    stateDescription: String(format: String(localized: "cell_state_mines"), adjacentMines)
+                )
             }
         }
+    }
+
+    private func formattedAccessibilityLabel(stateDescription: String) -> String {
+        String(
+            format: String(localized: "cell_accessibility_label"),
+            row + 1,
+            col + 1,
+            stateDescription
+        )
     }
 
     private var accessibilityHint: String {

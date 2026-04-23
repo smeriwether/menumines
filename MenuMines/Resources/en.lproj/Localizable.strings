@@ -3,6 +3,14 @@
 "reset_accessibility_combined" = "Reset game. Status: %@";
 "reset_accessibility_hint" = "Click to reset today's puzzle";
 "reset_locked_hint" = "Reset is locked after completing today's puzzle";
+"timer_accessibility_one_second" = "Elapsed time: 1 second";
+"timer_accessibility_seconds" = "Elapsed time: %d seconds";
+"timer_accessibility_one_minute" = "Elapsed time: 1 minute";
+"timer_accessibility_one_minute_seconds" = "Elapsed time: 1 minute, %d seconds";
+"timer_accessibility_minutes" = "Elapsed time: %d minutes";
+"timer_accessibility_minutes_seconds" = "Elapsed time: %d minutes, %d seconds";
+"flag_count_accessibility_one_remaining" = "%d flags placed, 1 mine remaining";
+"flag_count_accessibility_remaining" = "%d flags placed, %d mines remaining";
 "about_menu_item" = "About MenuMines";
 "settings_menu_item" = "Settings...";
 "quit_menu_item" = "Quit MenuMines";
@@ -66,6 +74,13 @@
 "stats_empty_subtitle" = "Stats are stored locally.";
 "stats_section_daily" = "Daily Puzzles";
 "stats_section_all" = "All Games";
+"stats_calendar_title" = "Daily Calendar";
+"stats_calendar_previous_month" = "Previous month";
+"stats_calendar_next_month" = "Next month";
+"stats_calendar_month_accessibility" = "Showing %@";
+"stats_calendar_day_not_played" = "%@, not played";
+"stats_calendar_day_won" = "%@, won";
+"stats_calendar_day_lost" = "%@, lost";
 
 /* Controls popover */
 "controls_button_accessibility" = "Show keyboard controls";
@@ -86,8 +101,11 @@
 "cell_hint_remove_flag" = "Press F to remove flag";
 
 /* Cell state descriptions for accessibility */
+"cell_accessibility_label" = "Row %d, Column %d, %@";
 "cell_state_covered" = "covered";
 "cell_state_flagged" = "flagged";
+"cell_state_mine" = "mine";
+"cell_state_exploded_mine" = "exploded mine";
 "cell_state_empty" = "empty";
 "cell_state_one_mine" = "1 adjacent mine";
 "cell_state_mines" = "%d adjacent mines";

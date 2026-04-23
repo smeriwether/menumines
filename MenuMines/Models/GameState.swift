@@ -36,8 +36,8 @@ final class GameState {
     private let gameTimer = GameTimer()
     /// Handles VoiceOver announcements with debouncing.
     private let announcer = AccessibilityAnnouncer()
-    /// Cache the last date we checked for rollover to avoid redundant calculations
-    private var lastRolloverCheckDate: Date?
+    /// Cache the last UTC daily seed we checked for rollover to avoid redundant calculations
+    private var lastRolloverCheckSeed: Int64?
 
     /// Whether continuous play mode is enabled.
     private var isContinuousPlayEnabled: Bool {
@@ -276,25 +276,25 @@ final class GameState {
         // Random puzzles are not tied to dates - skip rollover check
         guard puzzleType == .daily else { return }
 
-        let now = Date()
+        let todaySeed = seedFromDate(Date())
 
-        // Check if we've already checked today (cache optimization)
-        if let lastCheck = lastRolloverCheckDate,
-           Calendar.current.isDate(lastCheck, inSameDayAs: now) {
+        // Check if we've already checked this UTC day (cache optimization)
+        if lastRolloverCheckSeed == todaySeed, dailySeed == todaySeed {
             return
         }
 
-        lastRolloverCheckDate = now
-        let todaySeed = seedFromDate(now)
-
         // Already on today's puzzle
-        guard dailySeed != todaySeed else { return }
+        guard dailySeed != todaySeed else {
+            lastRolloverCheckSeed = todaySeed
+            return
+        }
 
         // Game is in progress - delay rollover
         guard status != .playing else { return }
 
         // Roll over to today's puzzle
         rolloverToNewDay(seed: todaySeed)
+        lastRolloverCheckSeed = todaySeed
     }
 
     /// Performs a rollover to a new day's puzzle.
@@ -451,7 +451,7 @@ final class GameState {
 
         if puzzleType == .daily {
             // Only mark daily completion and record daily stats for daily puzzles
-            markCompleteAndRecordStats(won: won, elapsedTime: elapsedTime, flagCount: flagCount)
+            markCompleteAndRecordStats(forSeed: dailySeed, won: won, elapsedTime: elapsedTime, flagCount: flagCount)
 
             // Save to daily namespace for restoration when continuous play is toggled off.
             // This is intentionally a separate save from save() below - the daily namespace

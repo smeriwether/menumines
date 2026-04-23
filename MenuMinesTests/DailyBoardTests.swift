@@ -130,6 +130,44 @@ final class DailyBoardTests: XCTestCase {
         XCTAssertEqual(stats?.flagCount, 7)
     }
 
+    func testRecordStatsForSeedUsesProvidedSeed() {
+        clearStats()
+        let seed: Int64 = 20260125
+        UserDefaults.standard.removeObject(forKey: "dailyStats_\(seed)")
+        defer {
+            UserDefaults.standard.removeObject(forKey: "dailyStatsRecordedSeed")
+            UserDefaults.standard.removeObject(forKey: "dailyStats_\(seed)")
+        }
+
+        let result = recordStats(forSeed: seed, won: false, elapsedTime: 42, flagCount: 3)
+
+        XCTAssertTrue(result)
+        XCTAssertTrue(hasStatsBeenRecorded(forSeed: seed))
+        XCTAssertEqual(getStats(forSeed: seed), DailyStats(seed: seed, won: false, elapsedTime: 42, flagCount: 3))
+    }
+
+    func testRecordStatsForSeedDedupesWhenMarkerMovedToAnotherSeed() {
+        clearStats()
+        let firstSeed: Int64 = 20260125
+        let secondSeed: Int64 = 20260126
+        UserDefaults.standard.removeObject(forKey: "dailyStats_\(firstSeed)")
+        UserDefaults.standard.removeObject(forKey: "dailyStats_\(secondSeed)")
+        defer {
+            UserDefaults.standard.removeObject(forKey: "dailyStatsRecordedSeed")
+            UserDefaults.standard.removeObject(forKey: "dailyStats_\(firstSeed)")
+            UserDefaults.standard.removeObject(forKey: "dailyStats_\(secondSeed)")
+        }
+
+        XCTAssertTrue(recordStats(forSeed: firstSeed, won: true, elapsedTime: 100, flagCount: 4))
+        XCTAssertTrue(recordStats(forSeed: secondSeed, won: false, elapsedTime: 200, flagCount: 5))
+
+        let duplicate = recordStats(forSeed: firstSeed, won: false, elapsedTime: 50, flagCount: 1)
+
+        XCTAssertFalse(duplicate)
+        XCTAssertEqual(getStats(forSeed: firstSeed)?.won, true)
+        XCTAssertEqual(getStats(forSeed: firstSeed)?.elapsedTime, 100)
+    }
+
     func testGetStatsReturnsNilWhenNotRecorded() {
         clearStats()
         let stats = getStats(for: Date())

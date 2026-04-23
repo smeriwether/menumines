@@ -81,14 +81,43 @@ final class StatsStore {
         return Int(round(Double(dailyWins) / Double(dailyGamesPlayed) * 100))
     }
 
+    /// Daily puzzle results keyed by their UTC daily seed.
+    var dailyResultsBySeed: [Int64: GameResult] {
+        var resultsBySeed: [Int64: GameResult] = [:]
+        for result in dailyResults {
+            if resultsBySeed[result.dailySeed] == nil {
+                resultsBySeed[result.dailySeed] = result
+            }
+        }
+        return resultsBySeed
+    }
+
+    /// Returns the recorded daily puzzle result for a UTC daily seed, if present.
+    func dailyResult(forSeed seed: Int64) -> GameResult? {
+        dailyResultsBySeed[seed]
+    }
+
     // MARK: - Streaks
 
     /// Current consecutive-day streak based on completed daily seeds.
     var currentStreak: Int {
+        currentStreak(asOf: Date())
+    }
+
+    /// Current consecutive-day streak as of a specific date.
+    func currentStreak(asOf date: Date) -> Int {
         let dates = completionDates
         guard let latest = dates.last else { return 0 }
 
         let calendar = Self.utcCalendar
+        let today = calendar.startOfDay(for: date)
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)
+
+        guard calendar.isDate(latest, inSameDayAs: today) ||
+              (yesterday.map { calendar.isDate(latest, inSameDayAs: $0) } ?? false) else {
+            return 0
+        }
+
         var streak = 1
         var previous = latest
 
