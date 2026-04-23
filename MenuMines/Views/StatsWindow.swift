@@ -3,6 +3,7 @@ import SwiftUI
 /// Window for displaying game statistics.
 struct StatsWindow: View {
     @State private var showResetConfirmation = false
+    @State private var selectedTab: StatsTab = .summary
     @AppStorage(Constants.SettingsKeys.showStreaks) private var showStreaks = true
 
     private var store: StatsStore {
@@ -12,10 +13,21 @@ struct StatsWindow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             headerSection
+
+            Picker("", selection: $selectedTab) {
+                ForEach(StatsTab.allCases) { tab in
+                    Text(tab.title).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal)
+            .padding(.bottom, 12)
+
             Divider()
 
             if store.hasResults {
-                metricsSection
+                selectedContent
             } else {
                 emptyStateSection
             }
@@ -23,7 +35,7 @@ struct StatsWindow: View {
             Divider()
             footerSection
         }
-        .frame(width: 420)
+        .frame(width: 360)
         .fixedSize()
         .alert(String(localized: "stats_reset_confirmation_title"), isPresented: $showResetConfirmation) {
             Button(String(localized: "stats_reset_confirmation_cancel"), role: .cancel) {}
@@ -46,58 +58,84 @@ struct StatsWindow: View {
 
     // MARK: - Metrics
 
-    private var metricsSection: some View {
+    @ViewBuilder
+    private var selectedContent: some View {
+        switch selectedTab {
+        case .summary:
+            summarySection
+        case .history:
+            historySection
+        case .recent:
+            recentSection
+        }
+    }
+
+    private var summarySection: some View {
         VStack(spacing: 16) {
-            // Daily Puzzles Section
-            VStack(alignment: .leading, spacing: 12) {
-                Text(String(localized: "stats_section_daily"))
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                VStack(spacing: 10) {
-                    metricRow(label: String(localized: "stats_games_played"), value: "\(store.dailyGamesPlayed)")
-                    metricRow(label: String(localized: "stats_wins"), value: "\(store.dailyWins)")
-                    metricRow(label: String(localized: "stats_win_rate"), value: formattedDailyWinRate)
-                    metricRow(label: String(localized: "stats_completion_rate"), value: formattedDailyCompletionRate)
-                    metricRow(label: String(localized: "stats_best_time"), value: formattedDailyBestTime)
-                    metricRow(label: String(localized: "stats_avg_time"), value: formattedDailyAverageTime)
-                    if showStreaks {
-                        streaksRows
-                    }
-                }
-            }
+            dailyMetricsSection
 
             Divider()
                 .padding(.vertical, 4)
 
-            DailyCompletionCalendarView(resultsBySeed: store.dailyResultsBySeed)
+            allGamesMetricsSection
+        }
+        .padding()
+    }
 
-            if !store.recentDailyResults.isEmpty {
-                Divider()
-                    .padding(.vertical, 4)
+    private var historySection: some View {
+        DailyCompletionCalendarView(resultsBySeed: store.dailyResultsBySeed)
+            .padding()
+    }
 
-                RecentDailyResultsView(results: store.recentDailyResults)
-            }
+    @ViewBuilder
+    private var recentSection: some View {
+        if store.recentDailyResults.isEmpty {
+            Text(String(localized: "stats_recent_empty"))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 40)
+                .padding(.horizontal)
+        } else {
+            RecentDailyResultsView(results: store.recentDailyResults)
+                .padding()
+        }
+    }
 
-            Divider()
-                .padding(.vertical, 4)
+    private var dailyMetricsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "stats_section_daily"))
+                .font(.headline)
+                .foregroundStyle(.primary)
 
-            // All Games Section
-            VStack(alignment: .leading, spacing: 12) {
-                Text(String(localized: "stats_section_all"))
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                VStack(spacing: 10) {
-                    metricRow(label: String(localized: "stats_games_played"), value: "\(store.gamesPlayed)")
-                    metricRow(label: String(localized: "stats_wins"), value: "\(store.wins)")
-                    metricRow(label: String(localized: "stats_win_rate"), value: formattedWinRate)
-                    metricRow(label: String(localized: "stats_best_time"), value: formattedBestTime)
-                    metricRow(label: String(localized: "stats_avg_time"), value: formattedAverageTime)
+            VStack(spacing: 10) {
+                metricRow(label: String(localized: "stats_games_played"), value: "\(store.dailyGamesPlayed)")
+                metricRow(label: String(localized: "stats_wins"), value: "\(store.dailyWins)")
+                metricRow(label: String(localized: "stats_win_rate"), value: formattedDailyWinRate)
+                metricRow(label: String(localized: "stats_completion_rate"), value: formattedDailyCompletionRate)
+                metricRow(label: String(localized: "stats_best_time"), value: formattedDailyBestTime)
+                metricRow(label: String(localized: "stats_avg_time"), value: formattedDailyAverageTime)
+                if showStreaks {
+                    streaksRows
                 }
             }
         }
-        .padding()
+    }
+
+    private var allGamesMetricsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "stats_section_all"))
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            VStack(spacing: 10) {
+                metricRow(label: String(localized: "stats_games_played"), value: "\(store.gamesPlayed)")
+                metricRow(label: String(localized: "stats_wins"), value: "\(store.wins)")
+                metricRow(label: String(localized: "stats_win_rate"), value: formattedWinRate)
+                metricRow(label: String(localized: "stats_best_time"), value: formattedBestTime)
+                metricRow(label: String(localized: "stats_avg_time"), value: formattedAverageTime)
+            }
+        }
     }
 
     private func metricRow(label: String, value: String) -> some View {
@@ -211,6 +249,25 @@ struct StatsWindow: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         return formatter.string(from: date)
+    }
+}
+
+private enum StatsTab: String, CaseIterable, Identifiable {
+    case summary
+    case history
+    case recent
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .summary:
+            return String(localized: "stats_tab_summary")
+        case .history:
+            return String(localized: "stats_tab_history")
+        case .recent:
+            return String(localized: "stats_tab_recent")
+        }
     }
 }
 

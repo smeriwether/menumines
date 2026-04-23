@@ -72,6 +72,9 @@
 "stats_empty_subtitle" = "Stats are stored locally.";
 "stats_section_daily" = "Daily Puzzles";
 "stats_section_all" = "All Games";
+"stats_tab_summary" = "Summary";
+"stats_tab_history" = "History";
+"stats_tab_recent" = "Recent";
 "stats_calendar_title" = "Daily History";
 "stats_calendar_previous_month" = "Previous month";
 "stats_calendar_next_month" = "Next month";
@@ -80,6 +83,7 @@
 "stats_calendar_day_won" = "%@, won";
 "stats_calendar_day_lost" = "%@, lost";
 "stats_recent_title" = "Recent Daily Results";
+"stats_recent_empty" = "No daily results yet.";
 "stats_result_won" = "Won";
 "stats_result_lost" = "Lost";
 "stats_recent_accessibility_label" = "%@, %@, %@";

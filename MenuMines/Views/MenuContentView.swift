@@ -13,6 +13,10 @@ struct MenuContentView: View {
         gameState.status == .won || gameState.status == .lost
     }
 
+    private var contentHeight: CGFloat {
+        isGameComplete ? 440 : 372
+    }
+
     private func copyShareTextToClipboard() {
         let shareDate = gameState.puzzleType == .daily ? dateFromSeed(gameState.dailySeed) ?? Date() : Date()
         guard let text = gameState.shareText(for: shareDate) else { return }
@@ -118,7 +122,8 @@ struct MenuContentView: View {
                 )
             }
         }
-        .frame(width: 300)
+        .frame(width: 300, height: contentHeight, alignment: .top)
+        .animation(.easeOut(duration: 0.12), value: isGameComplete)
         .onAppear {
             gameState.checkForDailyRollover()
             gameState.checkContinuousPlaySetting()
