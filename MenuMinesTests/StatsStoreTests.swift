@@ -15,9 +15,20 @@ struct StatsStoreTests {
         won: Bool,
         elapsedTime: TimeInterval = 120,
         dailySeed: Int64 = 20260125,
-        completedAt: Date = Date()
+        completedAt: Date = Date(),
+        puzzleType: PuzzleType = .daily
     ) -> GameResult {
-        GameResult(won: won, elapsedTime: elapsedTime, dailySeed: dailySeed, completedAt: completedAt)
+        GameResult(
+            won: won,
+            elapsedTime: elapsedTime,
+            dailySeed: dailySeed,
+            completedAt: completedAt,
+            puzzleType: puzzleType
+        )
+    }
+
+    private func date(_ seed: Int64) -> Date {
+        dateFromSeed(seed) ?? Date(timeIntervalSince1970: 0)
     }
 
     // MARK: - Empty State
@@ -163,74 +174,75 @@ struct StatsStoreTests {
     // MARK: - Streaks
 
     @Test("Current streak counts consecutive days ending at most recent completion")
-    func testCurrentStreakCountsMostRecentRun() throws {
+    func testCurrentStreakCountsMostRecentRun() {
         let store = StatsStore.forTesting(with: [
             makeResult(won: true, dailySeed: 20260125),
             makeResult(won: false, dailySeed: 20260126),
             makeResult(won: true, dailySeed: 20260128)
         ])
-        let asOfDate = try #require(dateFromSeed(20260128))
 
-        #expect(store.currentStreak(asOf: asOfDate) == 1)
+        #expect(store.currentStreak(asOf: date(20260129)) == 1)
         #expect(store.longestStreak == 2)
     }
 
-    @Test("Current streak is zero when latest completion is stale")
-    func testCurrentStreakIsZeroWhenLatestCompletionIsStale() throws {
-        let store = StatsStore.forTesting(with: [
-            makeResult(won: true, dailySeed: 20260125),
-            makeResult(won: false, dailySeed: 20260126),
-            makeResult(won: true, dailySeed: 20260127)
-        ])
-        let asOfDate = try #require(dateFromSeed(20260201))
-
-        #expect(store.currentStreak(asOf: asOfDate) == 0)
-        #expect(store.longestStreak == 3)
-    }
-
     @Test("Longest streak counts the maximum consecutive run")
-    func testLongestStreakCountsMaximumRun() throws {
+    func testLongestStreakCountsMaximumRun() {
         let store = StatsStore.forTesting(with: [
             makeResult(won: true, dailySeed: 20260125),
             makeResult(won: true, dailySeed: 20260126),
             makeResult(won: false, dailySeed: 20260127),
             makeResult(won: true, dailySeed: 20260129)
         ])
-        let asOfDate = try #require(dateFromSeed(20260129))
 
-        #expect(store.currentStreak(asOf: asOfDate) == 1)
+        #expect(store.currentStreak(asOf: date(20260130)) == 1)
         #expect(store.longestStreak == 3)
     }
 
     @Test("Streaks count across month boundaries")
-    func testStreaksCountAcrossMonthBoundaries() throws {
+    func testStreaksCountAcrossMonthBoundaries() {
         let store = StatsStore.forTesting(with: [
             makeResult(won: true, dailySeed: 20260131),
             makeResult(won: true, dailySeed: 20260201)
         ])
-        let asOfDate = try #require(dateFromSeed(20260201))
 
-        #expect(store.currentStreak(asOf: asOfDate) == 2)
+        #expect(store.currentStreak(asOf: date(20260201)) == 2)
         #expect(store.longestStreak == 2)
     }
 
-    @Test("Daily results by seed includes daily results only")
-    func testDailyResultsBySeedIncludesDailyResultsOnly() {
-        let daily = makeResult(won: true, dailySeed: 20260125)
-        let random = GameResult(won: false, elapsedTime: 30, dailySeed: -123, puzzleType: .random)
-        let store = StatsStore.forTesting(with: [daily, random])
+    @Test("Current streak is zero when latest completion is stale")
+    func testCurrentStreakIsZeroWhenLatestCompletionIsStale() {
+        let store = StatsStore.forTesting(with: [
+            makeResult(won: true, dailySeed: 20260125),
+            makeResult(won: true, dailySeed: 20260126)
+        ])
 
-        #expect(store.dailyResultsBySeed[20260125] == daily)
-        #expect(store.dailyResultsBySeed[-123] == nil)
+        #expect(store.currentStreak(asOf: date(20260201)) == 0)
+        #expect(store.longestStreak == 2)
     }
 
-    @Test("Daily result lookup handles duplicate legacy seeds")
-    func testDailyResultLookupHandlesDuplicateLegacySeeds() {
-        let older = makeResult(won: true, elapsedTime: 120, dailySeed: 20260125)
-        let newer = makeResult(won: false, elapsedTime: 90, dailySeed: 20260125)
-        let store = StatsStore.forTesting(with: [newer, older])
+    @Test("Daily history helpers expose daily-only result data")
+    func testDailyHistoryHelpers() {
+        let store = StatsStore.forTesting(with: [
+            makeResult(won: true, elapsedTime: 100, dailySeed: 20260125),
+            makeResult(won: false, elapsedTime: 50, dailySeed: 20260126),
+            makeResult(won: true, elapsedTime: 80, dailySeed: -10, puzzleType: .random)
+        ])
 
-        #expect(store.dailyResult(forSeed: 20260125) == newer)
+        #expect(store.dailyResultsBySeed[20260125]?.won == true)
+        #expect(store.dailyResult(forSeed: 20260126)?.won == false)
+        #expect(store.dailyBestTime == 100)
+        #expect(store.dailyAverageTime == 100)
+        #expect(store.recentDailyResults.map(\.dailySeed) == [20260126, 20260125])
+    }
+
+    @Test("Daily completion rate counts tracked UTC days")
+    func testDailyCompletionRateCountsTrackedDays() {
+        let store = StatsStore.forTesting(with: [
+            makeResult(won: true, dailySeed: 20260125),
+            makeResult(won: false, dailySeed: 20260127)
+        ])
+
+        #expect(store.dailyCompletionRate(asOf: date(20260128)) == 50)
     }
 
     // MARK: - Recording

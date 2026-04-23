@@ -44,27 +44,28 @@ struct HeaderView: View {
         let seconds = totalSeconds % 60
 
         if minutes == 0 {
-            return seconds == 1
-                ? String(localized: "timer_accessibility_one_second")
-                : String(format: String(localized: "timer_accessibility_seconds"), seconds)
+            if seconds == 1 {
+                return String(localized: "timer_accessibility_one_second")
+            }
+            return String(format: String(localized: "timer_accessibility_seconds"), seconds)
         } else if minutes == 1 {
-            return seconds == 0
-                ? String(localized: "timer_accessibility_one_minute")
-                : String(format: String(localized: "timer_accessibility_one_minute_seconds"), seconds)
-        } else {
-            return seconds == 0
-                ? String(format: String(localized: "timer_accessibility_minutes"), minutes)
-                : String(format: String(localized: "timer_accessibility_minutes_seconds"), minutes, seconds)
+            if seconds == 0 {
+                return String(localized: "timer_accessibility_one_minute")
+            }
+            return String(format: String(localized: "timer_accessibility_one_minute_seconds"), seconds)
         }
+        if seconds == 0 {
+            return String(format: String(localized: "timer_accessibility_minutes"), minutes)
+        }
+        return String(format: String(localized: "timer_accessibility_minutes_seconds"), minutes, seconds)
     }
 
     private var flagCountAccessibilityLabel: String {
         let remaining = Board.mineCount - flagCount
         if remaining == 1 {
             return String(format: String(localized: "flag_count_accessibility_one_remaining"), flagCount)
-        } else {
-            return String(format: String(localized: "flag_count_accessibility_remaining"), flagCount, remaining)
         }
+        return String(format: String(localized: "flag_count_accessibility_remaining"), flagCount, remaining)
     }
 
     var body: some View {

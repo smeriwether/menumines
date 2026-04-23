@@ -110,7 +110,11 @@ struct MenuMinesApp: App {
         MenuBarExtra {
             MenuContentView(gameState: gameState)
         } label: {
-            MenuBarIconView(state: currentIconState)
+            MenuBarIconView(
+                state: currentIconState,
+                elapsedTime: gameState.elapsedTime,
+                currentStreak: StatsStore.shared.currentStreak
+            )
         }
         .menuBarExtraStyle(.window)
 
@@ -129,22 +133,81 @@ struct MenuMinesApp: App {
 /// Menu bar icon view showing state-specific icon with subtle indicators.
 struct MenuBarIconView: View {
     let state: MenuBarIconState
+    let elapsedTime: TimeInterval
+    let currentStreak: Int
 
-    private var iconName: String {
+    private var baseIconName: String {
         switch state {
-        case .normal:
+        case .normal, .complete:
             return "square.grid.3x3.fill"
         case .incomplete:
             return "square.grid.3x3"
-        case .paused:
+        case .playing, .paused:
             return "square.grid.3x3.topleft.filled"
         case .lost:
             return "square.grid.3x3.bottomright.filled"
         }
     }
 
+    private var detailText: String? {
+        switch state {
+        case .playing, .paused:
+            return formatTime(elapsedTime)
+        case .complete where currentStreak > 1:
+            return "\(currentStreak)"
+        case .normal, .incomplete, .complete, .lost:
+            return nil
+        }
+    }
+
+    private var overlayName: String? {
+        state.overlaySymbol
+    }
+
+    private var accessibilityLabel: String {
+        switch state {
+        case .normal:
+            return String(localized: "menu_bar_title")
+        case .incomplete:
+            return String(localized: "menu_bar_accessibility_incomplete")
+        case .playing:
+            return String(format: String(localized: "menu_bar_accessibility_playing"), formatTime(elapsedTime))
+        case .paused:
+            return String(format: String(localized: "menu_bar_accessibility_paused"), formatTime(elapsedTime))
+        case .complete:
+            return String(format: String(localized: "menu_bar_accessibility_complete"), currentStreak)
+        case .lost:
+            return String(localized: "menu_bar_accessibility_lost")
+        }
+    }
+
     var body: some View {
-        Image(systemName: iconName)
-            .accessibilityLabel(String(localized: "menu_bar_title"))
+        HStack(spacing: 4) {
+            ZStack(alignment: .bottomTrailing) {
+                Image(systemName: baseIconName)
+
+                if let overlayName {
+                    Image(systemName: overlayName)
+                        .font(.system(size: 7, weight: .bold))
+                        .symbolRenderingMode(.hierarchical)
+                        .offset(x: 5, y: 4)
+                }
+            }
+
+            if let detailText {
+                Text(detailText)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .monospacedDigit()
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private func formatTime(_ seconds: TimeInterval) -> String {
+        let totalSeconds = Int(seconds)
+        let minutes = totalSeconds / 60
+        let secs = totalSeconds % 60
+        return String(format: "%02d:%02d", minutes, secs)
     }
 }

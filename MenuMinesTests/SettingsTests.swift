@@ -151,12 +151,12 @@ struct SettingsTests {
         let lostState = menuBarIconState(gameStatus: .lost, isPaused: false, isDailyComplete: false)
         let pausedState = menuBarIconState(gameStatus: .playing, isPaused: true, isDailyComplete: false)
         let incompleteState = menuBarIconState(gameStatus: .notStarted, isPaused: false, isDailyComplete: false)
-        let normalState = menuBarIconState(gameStatus: .won, isPaused: false, isDailyComplete: true)
+        let completeState = menuBarIconState(gameStatus: .won, isPaused: false, isDailyComplete: true)
 
         #expect(lostState == .lost)
         #expect(pausedState == .paused)
         #expect(incompleteState == .incomplete)
-        #expect(normalState == .normal)
+        #expect(completeState == .complete)
     }
 
     @Test("Icon state respects showMenuBarIndicators setting when disabled")

@@ -55,9 +55,13 @@ func isDailyPuzzleComplete() -> Bool {
 
 /// Returns whether the daily puzzle for a specific date has been completed.
 func isDailyPuzzleComplete(for date: Date) -> Bool {
-    let todaySeed = seedFromDate(date)
+    isDailyPuzzleComplete(forSeed: seedFromDate(date))
+}
+
+/// Returns whether the daily puzzle for a specific seed has been completed.
+func isDailyPuzzleComplete(forSeed seed: Int64) -> Bool {
     let completedSeed = UserDefaults.standard.object(forKey: dailyCompletionKey) as? Int64 ?? 0
-    return completedSeed == todaySeed
+    return completedSeed == seed
 }
 
 /// Marks today's daily puzzle as complete.
@@ -100,7 +104,7 @@ func hasStatsBeenRecorded(for date: Date) -> Bool {
     hasStatsBeenRecorded(forSeed: seedFromDate(date))
 }
 
-/// Returns whether stats have been recorded for a specific daily seed.
+/// Returns whether stats have been recorded for a specific seed.
 func hasStatsBeenRecorded(forSeed seed: Int64) -> Bool {
     let recordedSeed = UserDefaults.standard.object(forKey: dailyStatsRecordedKey) as? Int64 ?? 0
     return recordedSeed == seed || UserDefaults.standard.data(forKey: statsKey(for: seed)) != nil
@@ -129,9 +133,9 @@ func recordStats(for date: Date, won: Bool, elapsedTime: TimeInterval, flagCount
     recordStats(forSeed: seedFromDate(date), won: won, elapsedTime: elapsedTime, flagCount: flagCount)
 }
 
-/// Records stats for a specific daily seed. Does nothing if stats have already been recorded.
+/// Records stats for a specific seed's puzzle. Does nothing if stats have already been recorded.
 /// - Parameters:
-///   - seed: The YYYYMMDD UTC seed of the puzzle
+///   - seed: The daily puzzle seed
 ///   - won: Whether the player won
 ///   - elapsedTime: Time taken to complete
 ///   - flagCount: Number of flags placed
@@ -173,7 +177,7 @@ func getStats(for date: Date) -> DailyStats? {
     getStats(forSeed: seedFromDate(date))
 }
 
-/// Retrieves the stats for a specific daily seed, if they exist.
+/// Retrieves the stats for a specific seed, if they exist.
 func getStats(forSeed seed: Int64) -> DailyStats? {
     guard let data = UserDefaults.standard.data(forKey: statsKey(for: seed)) else { return nil }
     return try? JSONDecoder().decode(DailyStats.self, from: data)
@@ -192,22 +196,19 @@ func markCompleteAndRecordStats(for date: Date, won: Bool, elapsedTime: TimeInte
     markCompleteAndRecordStats(forSeed: seedFromDate(date), won: won, elapsedTime: elapsedTime, flagCount: flagCount)
 }
 
-/// Atomically marks the daily puzzle for a specific seed as complete and records stats.
+/// Atomically marks the daily puzzle seed as complete and records stats.
 /// This is the recommended way to mark completion to ensure consistency.
 /// - Parameters:
-///   - seed: The YYYYMMDD UTC seed of the puzzle
+///   - seed: The daily puzzle seed
 ///   - won: Whether the player won
 ///   - elapsedTime: Time taken to complete
 ///   - flagCount: Number of flags placed
-/// - Returns: True if both operations succeeded, false otherwise
+/// - Returns: True if completion is consistent after the call, false otherwise
 @discardableResult
 func markCompleteAndRecordStats(forSeed seed: Int64, won: Bool, elapsedTime: TimeInterval, flagCount: Int) -> Bool {
-    // Record stats first (more detailed, fail fast)
-    guard recordStats(forSeed: seed, won: won, elapsedTime: elapsedTime, flagCount: flagCount) else {
-        return false
-    }
+    let recorded = recordStats(forSeed: seed, won: won, elapsedTime: elapsedTime, flagCount: flagCount)
+    guard recorded || hasStatsBeenRecorded(forSeed: seed) else { return false }
 
-    // Only mark as complete if stats recording succeeded
     markDailyPuzzleComplete(forSeed: seed)
     return true
 }

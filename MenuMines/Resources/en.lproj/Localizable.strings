@@ -3,14 +3,6 @@
 "reset_accessibility_combined" = "Reset game. Status: %@";
 "reset_accessibility_hint" = "Click to reset today's puzzle";
 "reset_locked_hint" = "Reset is locked after completing today's puzzle";
-"timer_accessibility_one_second" = "Elapsed time: 1 second";
-"timer_accessibility_seconds" = "Elapsed time: %d seconds";
-"timer_accessibility_one_minute" = "Elapsed time: 1 minute";
-"timer_accessibility_one_minute_seconds" = "Elapsed time: 1 minute, %d seconds";
-"timer_accessibility_minutes" = "Elapsed time: %d minutes";
-"timer_accessibility_minutes_seconds" = "Elapsed time: %d minutes, %d seconds";
-"flag_count_accessibility_one_remaining" = "%d flags placed, 1 mine remaining";
-"flag_count_accessibility_remaining" = "%d flags placed, %d mines remaining";
 "about_menu_item" = "About MenuMines";
 "settings_menu_item" = "Settings...";
 "quit_menu_item" = "Quit MenuMines";
@@ -42,6 +34,11 @@
 
 /* MenuMinesApp - MenuBarExtra title */
 "menu_bar_title" = "MenuMines";
+"menu_bar_accessibility_incomplete" = "MenuMines, daily puzzle not completed";
+"menu_bar_accessibility_playing" = "MenuMines, game in progress, elapsed time %@";
+"menu_bar_accessibility_paused" = "MenuMines, game paused, elapsed time %@";
+"menu_bar_accessibility_complete" = "MenuMines, daily puzzle complete, current streak %d";
+"menu_bar_accessibility_lost" = "MenuMines, game over";
 
 /* Share feature */
 "share_button" = "Share";
@@ -59,6 +56,7 @@
 "stats_games_played" = "Games Played";
 "stats_wins" = "Wins";
 "stats_win_rate" = "Win Rate";
+"stats_completion_rate" = "Completion Rate";
 "stats_best_time" = "Best Time";
 "stats_avg_time" = "Avg Time (wins)";
 "stats_current_streak" = "Current Streak";
@@ -74,13 +72,28 @@
 "stats_empty_subtitle" = "Stats are stored locally.";
 "stats_section_daily" = "Daily Puzzles";
 "stats_section_all" = "All Games";
-"stats_calendar_title" = "Daily Calendar";
+"stats_calendar_title" = "Daily History";
 "stats_calendar_previous_month" = "Previous month";
 "stats_calendar_next_month" = "Next month";
-"stats_calendar_month_accessibility" = "Showing %@";
+"stats_calendar_month_accessibility" = "Daily history for %@";
 "stats_calendar_day_not_played" = "%@, not played";
 "stats_calendar_day_won" = "%@, won";
 "stats_calendar_day_lost" = "%@, lost";
+"stats_recent_title" = "Recent Daily Results";
+"stats_result_won" = "Won";
+"stats_result_lost" = "Lost";
+"stats_recent_accessibility_label" = "%@, %@, %@";
+"metric_accessibility_label" = "%@: %@";
+
+/* Post-game summary */
+"post_game_won_title" = "Daily complete";
+"post_game_lost_title" = "Daily ended";
+"post_game_random_won_title" = "Puzzle complete";
+"post_game_random_lost_title" = "Puzzle ended";
+"post_game_time" = "Time";
+"post_game_flags" = "Flags";
+"post_game_best" = "Best";
+"post_game_streak" = "Streak";
 
 /* Controls popover */
 "controls_button_accessibility" = "Show keyboard controls";
@@ -88,6 +101,7 @@
 "controls_move" = "Move selection";
 "controls_reveal" = "Reveal cell";
 "controls_flag" = "Toggle flag";
+"controls_flag_mode" = "Flag mode";
 "controls_reset" = "Reset game";
 
 /* Accessibility announcements */
@@ -98,7 +112,9 @@
 
 /* Cell accessibility hints */
 "cell_hint_reveal_or_flag" = "Double-tap to reveal, or press F to flag";
+"cell_hint_flag_mode" = "Flag mode is on. Double-tap to flag, or use the flag button to reveal again.";
 "cell_hint_remove_flag" = "Press F to remove flag";
+"cell_hint_chord_ready" = "Double-tap to reveal adjacent covered cells";
 
 /* Cell state descriptions for accessibility */
 "cell_accessibility_label" = "Row %d, Column %d, %@";
@@ -109,6 +125,19 @@
 "cell_state_empty" = "empty";
 "cell_state_one_mine" = "1 adjacent mine";
 "cell_state_mines" = "%d adjacent mines";
+
+/* Header accessibility */
+"timer_accessibility_one_second" = "Elapsed time: 1 second";
+"timer_accessibility_seconds" = "Elapsed time: %d seconds";
+"timer_accessibility_one_minute" = "Elapsed time: 1 minute";
+"timer_accessibility_one_minute_seconds" = "Elapsed time: 1 minute, %d seconds";
+"timer_accessibility_minutes" = "Elapsed time: %d minutes";
+"timer_accessibility_minutes_seconds" = "Elapsed time: %d minutes, %d seconds";
+"flag_count_accessibility_one_remaining" = "%d flags placed, 1 mine remaining";
+"flag_count_accessibility_remaining" = "%d flags placed, %d mines remaining";
+"flag_mode_button_help" = "Toggle flag mode";
+"flag_mode_on_accessibility" = "Turn flag mode off";
+"flag_mode_off_accessibility" = "Turn flag mode on";
 
 /* Stats display */
 "stats_no_data" = "—";

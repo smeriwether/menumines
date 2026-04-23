@@ -7,10 +7,13 @@ struct CellView: View {
     let col: Int
     let gameStatus: GameStatus
     let isSelected: Bool
+    let isChordReady: Bool
+    let isFlagMode: Bool
     let onReveal: () -> Void
     let onFlag: () -> Void
 
     @State private var isHovered = false
+    @State private var isPressed = false
     @Environment(\.colorScheme) private var colorScheme
 
     private static let cellSize: CGFloat = 28
@@ -19,16 +22,29 @@ struct CellView: View {
         ZStack {
             background
             hoverOverlay
+            chordReadyOverlay
             content
         }
         .frame(width: Self.cellSize, height: Self.cellSize)
+        .scaleEffect(isPressed && !isRevealed ? 0.96 : 1)
         .overlay(selectionBorder)
         .overlay(
-            ClickHandlerView(onLeftClick: onReveal, onRightClick: onFlag)
+            ClickHandlerView(
+                onLeftClick: onReveal,
+                onRightClick: onFlag,
+                onPressedChanged: { pressed in
+                    withAnimation(.easeOut(duration: 0.08)) {
+                        isPressed = pressed
+                    }
+                }
+            )
         )
         .onHover { hovering in
-            isHovered = hovering
+            withAnimation(.easeOut(duration: 0.08)) {
+                isHovered = hovering
+            }
         }
+        .animation(.easeOut(duration: 0.08), value: isPressed)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(accessibilityHint)
@@ -38,37 +54,31 @@ struct CellView: View {
     // MARK: - Accessibility
 
     private var accessibilityLabel: String {
+        let state: String
+
         if cell.isExploded {
-            return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_exploded_mine"))
+            state = String(localized: "cell_state_exploded_mine")
+            return String(format: String(localized: "cell_accessibility_label"), row + 1, col + 1, state)
         }
 
         switch cell.state {
         case .hidden:
-            return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_covered"))
+            state = String(localized: "cell_state_covered")
         case .flagged:
-            return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_flagged"))
+            state = String(localized: "cell_state_flagged")
         case .revealed(let adjacentMines):
             if cell.hasMine {
-                return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_mine"))
+                state = String(localized: "cell_state_mine")
             } else if adjacentMines == 0 {
-                return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_empty"))
+                state = String(localized: "cell_state_empty")
             } else if adjacentMines == 1 {
-                return formattedAccessibilityLabel(stateDescription: String(localized: "cell_state_one_mine"))
+                state = String(localized: "cell_state_one_mine")
             } else {
-                return formattedAccessibilityLabel(
-                    stateDescription: String(format: String(localized: "cell_state_mines"), adjacentMines)
-                )
+                state = String(format: String(localized: "cell_state_mines"), adjacentMines)
             }
         }
-    }
 
-    private func formattedAccessibilityLabel(stateDescription: String) -> String {
-        String(
-            format: String(localized: "cell_accessibility_label"),
-            row + 1,
-            col + 1,
-            stateDescription
-        )
+        return String(format: String(localized: "cell_accessibility_label"), row + 1, col + 1, state)
     }
 
     private var accessibilityHint: String {
@@ -78,9 +88,14 @@ struct CellView: View {
 
         switch cell.state {
         case .hidden:
+            if isFlagMode {
+                return String(localized: "cell_hint_flag_mode")
+            }
             return String(localized: "cell_hint_reveal_or_flag")
         case .flagged:
             return String(localized: "cell_hint_remove_flag")
+        case .revealed(let adjacentMines) where isChordReady && adjacentMines > 0:
+            return String(localized: "cell_hint_chord_ready")
         case .revealed:
             return ""
         }
@@ -131,6 +146,15 @@ struct CellView: View {
             } else {
                 Color.black.opacity(0.1)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var chordReadyOverlay: some View {
+        if isHovered && isChordReady && isRevealed {
+            RoundedRectangle(cornerRadius: 2)
+                .stroke(Color.accentColor.opacity(0.75), lineWidth: 2)
+                .padding(2)
         }
     }
 
@@ -225,25 +249,30 @@ struct CellView: View {
 private struct ClickHandlerView: NSViewRepresentable {
     let onLeftClick: () -> Void
     let onRightClick: () -> Void
+    let onPressedChanged: (Bool) -> Void
 
     func makeNSView(context: Context) -> ClickableNSView {
         let view = ClickableNSView()
         view.onLeftClick = onLeftClick
         view.onRightClick = onRightClick
+        view.onPressedChanged = onPressedChanged
         return view
     }
 
     func updateNSView(_ nsView: ClickableNSView, context: Context) {
         nsView.onLeftClick = onLeftClick
         nsView.onRightClick = onRightClick
+        nsView.onPressedChanged = onPressedChanged
     }
 }
 
 private class ClickableNSView: NSView {
     var onLeftClick: (() -> Void)?
     var onRightClick: (() -> Void)?
+    var onPressedChanged: ((Bool) -> Void)?
 
     override func mouseDown(with event: NSEvent) {
+        pulsePressedState()
         if event.modifierFlags.contains(.control) {
             // Control+Click is the macOS convention for secondary click
             onRightClick?()
@@ -253,7 +282,15 @@ private class ClickableNSView: NSView {
     }
 
     override func rightMouseDown(with event: NSEvent) {
+        pulsePressedState()
         onRightClick?()
+    }
+
+    private func pulsePressedState() {
+        onPressedChanged?(true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+            self?.onPressedChanged?(false)
+        }
     }
 }
 
@@ -310,6 +347,8 @@ private struct RaisedCellBackground: View {
         col: 0,
         gameStatus: .playing,
         isSelected: false,
+        isChordReady: false,
+        isFlagMode: false,
         onReveal: {},
         onFlag: {}
     )
@@ -323,6 +362,8 @@ private struct RaisedCellBackground: View {
         col: 0,
         gameStatus: .playing,
         isSelected: true,
+        isChordReady: false,
+        isFlagMode: false,
         onReveal: {},
         onFlag: {}
     )
@@ -336,6 +377,8 @@ private struct RaisedCellBackground: View {
         col: 0,
         gameStatus: .playing,
         isSelected: false,
+        isChordReady: false,
+        isFlagMode: false,
         onReveal: {},
         onFlag: {}
     )
@@ -351,6 +394,8 @@ private struct RaisedCellBackground: View {
                 col: count - 1,
                 gameStatus: .playing,
                 isSelected: false,
+                isChordReady: count == 1,
+                isFlagMode: false,
                 onReveal: {},
                 onFlag: {}
             )
@@ -366,6 +411,8 @@ private struct RaisedCellBackground: View {
         col: 0,
         gameStatus: .playing,
         isSelected: false,
+        isChordReady: false,
+        isFlagMode: false,
         onReveal: {},
         onFlag: {}
     )
@@ -379,6 +426,8 @@ private struct RaisedCellBackground: View {
         col: 0,
         gameStatus: .lost,
         isSelected: false,
+        isChordReady: false,
+        isFlagMode: false,
         onReveal: {},
         onFlag: {}
     )
@@ -392,6 +441,8 @@ private struct RaisedCellBackground: View {
         col: 0,
         gameStatus: .lost,
         isSelected: false,
+        isChordReady: false,
+        isFlagMode: false,
         onReveal: {},
         onFlag: {}
     )
@@ -407,6 +458,8 @@ private struct RaisedCellBackground: View {
         col: 0,
         gameStatus: .playing,
         isSelected: false,
+        isChordReady: false,
+        isFlagMode: false,
         onReveal: {},
         onFlag: {}
     )
@@ -423,6 +476,8 @@ private struct RaisedCellBackground: View {
                 col: count - 1,
                 gameStatus: .playing,
                 isSelected: false,
+                isChordReady: count == 1,
+                isFlagMode: false,
                 onReveal: {},
                 onFlag: {}
             )

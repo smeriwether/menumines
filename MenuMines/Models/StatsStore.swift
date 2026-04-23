@@ -65,6 +65,24 @@ final class StatsStore {
         results.filter { $0.puzzleType == .daily }
     }
 
+    /// Daily puzzle results keyed by seed, useful for history/calendar views.
+    var dailyResultsBySeed: [Int64: GameResult] {
+        Dictionary(dailyResults.map { ($0.dailySeed, $0) }) { existing, _ in existing }
+    }
+
+    /// Recent daily puzzle results, newest first.
+    var recentDailyResults: [GameResult] {
+        dailyResults
+            .sorted { $0.dailySeed > $1.dailySeed }
+            .prefix(5)
+            .map { $0 }
+    }
+
+    /// Returns the daily result for a seed, if one exists.
+    func dailyResult(forSeed seed: Int64) -> GameResult? {
+        dailyResultsBySeed[seed]
+    }
+
     /// Total number of daily puzzles played.
     var dailyGamesPlayed: Int {
         dailyResults.count
@@ -81,20 +99,38 @@ final class StatsStore {
         return Int(round(Double(dailyWins) / Double(dailyGamesPlayed) * 100))
     }
 
-    /// Daily puzzle results keyed by their UTC daily seed.
-    var dailyResultsBySeed: [Int64: GameResult] {
-        var resultsBySeed: [Int64: GameResult] = [:]
-        for result in dailyResults {
-            if resultsBySeed[result.dailySeed] == nil {
-                resultsBySeed[result.dailySeed] = result
-            }
-        }
-        return resultsBySeed
+    /// Best time among daily wins in seconds, or nil if no daily wins.
+    var dailyBestTime: TimeInterval? {
+        let winTimes = dailyResults.filter(\.won).map(\.elapsedTime)
+        return winTimes.min()
     }
 
-    /// Returns the recorded daily puzzle result for a UTC daily seed, if present.
-    func dailyResult(forSeed seed: Int64) -> GameResult? {
-        dailyResultsBySeed[seed]
+    /// Average time among daily wins in seconds, or nil if no daily wins.
+    var dailyAverageTime: TimeInterval? {
+        let winTimes = dailyResults.filter(\.won).map(\.elapsedTime)
+        guard !winTimes.isEmpty else { return nil }
+        return winTimes.reduce(0, +) / Double(winTimes.count)
+    }
+
+    /// Daily completion rate over the local tracking span, as a percentage.
+    var dailyCompletionRate: Int? {
+        dailyCompletionRate(asOf: Date())
+    }
+
+    /// Daily completion rate over the local tracking span, as a percentage.
+    func dailyCompletionRate(asOf date: Date) -> Int? {
+        let dates = completionDates
+        guard let first = dates.first else { return nil }
+
+        let calendar = Self.utcCalendar
+        let today = calendar.startOfDay(for: date)
+        let firstDay = calendar.startOfDay(for: first)
+        guard let dayCount = calendar.dateComponents([.day], from: firstDay, to: today).day else {
+            return nil
+        }
+
+        let trackedDays = max(1, dayCount + 1)
+        return Int(round(Double(dates.count) / Double(trackedDays) * 100))
     }
 
     // MARK: - Streaks
@@ -104,7 +140,7 @@ final class StatsStore {
         currentStreak(asOf: Date())
     }
 
-    /// Current consecutive-day streak as of a specific date.
+    /// Current consecutive-day streak based on completed daily seeds.
     func currentStreak(asOf date: Date) -> Int {
         let dates = completionDates
         guard let latest = dates.last else { return 0 }
@@ -112,9 +148,8 @@ final class StatsStore {
         let calendar = Self.utcCalendar
         let today = calendar.startOfDay(for: date)
         let yesterday = calendar.date(byAdding: .day, value: -1, to: today)
-
-        guard calendar.isDate(latest, inSameDayAs: today) ||
-              (yesterday.map { calendar.isDate(latest, inSameDayAs: $0) } ?? false) else {
+        guard calendar.isDate(latest, inSameDayAs: today)
+            || (yesterday.map { calendar.isDate(latest, inSameDayAs: $0) } ?? false) else {
             return 0
         }
 

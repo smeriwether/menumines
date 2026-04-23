@@ -11,8 +11,14 @@ enum MenuBarIconState: Equatable {
     /// Daily puzzle not yet completed.
     case incomplete
 
+    /// Game is actively being played.
+    case playing
+
     /// Game is in progress but paused (popover closed).
     case paused
+
+    /// Today's daily puzzle is complete.
+    case complete
 
     /// Game is lost.
     case lost
@@ -24,8 +30,12 @@ enum MenuBarIconState: Equatable {
             return nil
         case .incomplete:
             return "circle.fill"
+        case .playing:
+            return "timer"
         case .paused:
             return "pause.fill"
+        case .complete:
+            return "checkmark.circle.fill"
         case .lost:
             return "xmark.circle.fill"
         }
@@ -38,8 +48,12 @@ enum MenuBarIconState: Equatable {
             return "circle.grid.3x3.fill"
         case .incomplete:
             return "circle.grid.3x3.fill.badge.ellipsis"
+        case .playing:
+            return "timer"
         case .paused:
             return "pause.circle.fill"
+        case .complete:
+            return "checkmark.circle.fill"
         case .lost:
             return "xmark.circle.fill"
         }
@@ -59,12 +73,12 @@ func menuBarIconState(
         if isPaused {
             return .paused
         }
-        return .normal
+        return .playing
     case .won:
-        return .normal
+        return .complete
     case .notStarted:
         if isDailyComplete {
-            return .normal
+            return .complete
         }
         return .incomplete
     }

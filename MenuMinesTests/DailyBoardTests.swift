@@ -91,8 +91,11 @@ final class DailyBoardTests: XCTestCase {
 
     private func clearStats() {
         let todaySeed = seedFromDate(Date())
+        UserDefaults.standard.removeObject(forKey: "dailyCompletionSeed")
         UserDefaults.standard.removeObject(forKey: "dailyStatsRecordedSeed")
         UserDefaults.standard.removeObject(forKey: "dailyStats_\(todaySeed)")
+        UserDefaults.standard.removeObject(forKey: "dailyStats_20260125")
+        UserDefaults.standard.removeObject(forKey: "dailyStats_20260126")
     }
 
     override func tearDown() {
@@ -119,6 +122,21 @@ final class DailyBoardTests: XCTestCase {
         XCTAssertFalse(result, "Second recording should fail")
     }
 
+    func testSeedStatsDedupeUsesStoredRecord() {
+        clearStats()
+        let firstSeed: Int64 = 20260125
+        let secondSeed: Int64 = 20260126
+
+        XCTAssertTrue(recordStats(forSeed: firstSeed, won: true, elapsedTime: 100, flagCount: 5))
+        XCTAssertTrue(recordStats(forSeed: secondSeed, won: false, elapsedTime: 200, flagCount: 3))
+
+        let duplicate = recordStats(forSeed: firstSeed, won: false, elapsedTime: 50, flagCount: 1)
+
+        XCTAssertFalse(duplicate)
+        XCTAssertEqual(getStats(forSeed: firstSeed)?.won, true)
+        XCTAssertEqual(getStats(forSeed: firstSeed)?.elapsedTime, 100)
+    }
+
     func testGetStatsReturnsRecordedData() {
         clearStats()
         _ = recordStats(won: true, elapsedTime: 123.5, flagCount: 7)
@@ -130,42 +148,27 @@ final class DailyBoardTests: XCTestCase {
         XCTAssertEqual(stats?.flagCount, 7)
     }
 
-    func testRecordStatsForSeedUsesProvidedSeed() {
+    func testSeedBasedCompletionRecordsRequestedSeed() {
         clearStats()
         let seed: Int64 = 20260125
-        UserDefaults.standard.removeObject(forKey: "dailyStats_\(seed)")
-        defer {
-            UserDefaults.standard.removeObject(forKey: "dailyStatsRecordedSeed")
-            UserDefaults.standard.removeObject(forKey: "dailyStats_\(seed)")
-        }
 
-        let result = recordStats(forSeed: seed, won: false, elapsedTime: 42, flagCount: 3)
+        let result = markCompleteAndRecordStats(forSeed: seed, won: true, elapsedTime: 88, flagCount: 6)
 
         XCTAssertTrue(result)
+        XCTAssertTrue(isDailyPuzzleComplete(forSeed: seed))
         XCTAssertTrue(hasStatsBeenRecorded(forSeed: seed))
-        XCTAssertEqual(getStats(forSeed: seed), DailyStats(seed: seed, won: false, elapsedTime: 42, flagCount: 3))
+        XCTAssertEqual(getStats(forSeed: seed)?.seed, seed)
+        XCTAssertEqual(getStats(forSeed: seed)?.elapsedTime, 88)
     }
 
-    func testRecordStatsForSeedDedupesWhenMarkerMovedToAnotherSeed() {
+    func testSeedBasedCompletionDoesNotMarkCurrentDate() {
         clearStats()
-        let firstSeed: Int64 = 20260125
-        let secondSeed: Int64 = 20260126
-        UserDefaults.standard.removeObject(forKey: "dailyStats_\(firstSeed)")
-        UserDefaults.standard.removeObject(forKey: "dailyStats_\(secondSeed)")
-        defer {
-            UserDefaults.standard.removeObject(forKey: "dailyStatsRecordedSeed")
-            UserDefaults.standard.removeObject(forKey: "dailyStats_\(firstSeed)")
-            UserDefaults.standard.removeObject(forKey: "dailyStats_\(secondSeed)")
-        }
+        let seed: Int64 = 20260125
 
-        XCTAssertTrue(recordStats(forSeed: firstSeed, won: true, elapsedTime: 100, flagCount: 4))
-        XCTAssertTrue(recordStats(forSeed: secondSeed, won: false, elapsedTime: 200, flagCount: 5))
+        _ = markCompleteAndRecordStats(forSeed: seed, won: false, elapsedTime: 45, flagCount: 2)
 
-        let duplicate = recordStats(forSeed: firstSeed, won: false, elapsedTime: 50, flagCount: 1)
-
-        XCTAssertFalse(duplicate)
-        XCTAssertEqual(getStats(forSeed: firstSeed)?.won, true)
-        XCTAssertEqual(getStats(forSeed: firstSeed)?.elapsedTime, 100)
+        XCTAssertFalse(isDailyPuzzleComplete())
+        XCTAssertNil(getStats(for: Date()))
     }
 
     func testGetStatsReturnsNilWhenNotRecorded() {

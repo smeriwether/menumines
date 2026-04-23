@@ -7,14 +7,14 @@ struct MenuBarIconStateTests {
 
     // MARK: - Icon State Derivation Tests
 
-    @Test("Default icon when daily complete and game not started")
-    func testDefaultIconWhenDailyCompleteAndNotStarted() {
+    @Test("Complete icon when daily complete and game not started")
+    func testCompleteIconWhenDailyCompleteAndNotStarted() {
         let state = menuBarIconState(
             gameStatus: .notStarted,
             isPaused: false,
             isDailyComplete: true
         )
-        #expect(state == .normal)
+        #expect(state == .complete)
     }
 
     @Test("Incomplete icon when daily not complete and game not started")
@@ -37,14 +37,14 @@ struct MenuBarIconStateTests {
         #expect(state == .paused)
     }
 
-    @Test("Normal icon when game is playing and not paused")
-    func testNormalIconWhenPlayingAndNotPaused() {
+    @Test("Playing icon when game is playing and not paused")
+    func testPlayingIconWhenPlayingAndNotPaused() {
         let state = menuBarIconState(
             gameStatus: .playing,
             isPaused: false,
             isDailyComplete: false
         )
-        #expect(state == .normal)
+        #expect(state == .playing)
     }
 
     @Test("Lost icon when game is lost")
@@ -67,24 +67,24 @@ struct MenuBarIconStateTests {
         #expect(state == .lost)
     }
 
-    @Test("Normal icon when game is won")
-    func testNormalIconWhenGameWon() {
+    @Test("Complete icon when game is won")
+    func testCompleteIconWhenGameWon() {
         let state = menuBarIconState(
             gameStatus: .won,
             isPaused: false,
             isDailyComplete: false
         )
-        #expect(state == .normal)
+        #expect(state == .complete)
     }
 
-    @Test("Normal icon when game is won even if paused flag is true")
-    func testNormalIconWhenWonIgnoresPausedFlag() {
+    @Test("Complete icon when game is won even if paused flag is true")
+    func testCompleteIconWhenWonIgnoresPausedFlag() {
         let state = menuBarIconState(
             gameStatus: .won,
             isPaused: true,
             isDailyComplete: true
         )
-        #expect(state == .normal)
+        #expect(state == .complete)
     }
 
     // MARK: - System Image Name Tests
@@ -99,9 +99,19 @@ struct MenuBarIconStateTests {
         #expect(MenuBarIconState.incomplete.systemImageName == "circle.grid.3x3.fill.badge.ellipsis")
     }
 
+    @Test("Playing state returns correct system image")
+    func testPlayingSystemImage() {
+        #expect(MenuBarIconState.playing.systemImageName == "timer")
+    }
+
     @Test("Paused state returns correct system image")
     func testPausedSystemImage() {
         #expect(MenuBarIconState.paused.systemImageName == "pause.circle.fill")
+    }
+
+    @Test("Complete state returns correct system image")
+    func testCompleteSystemImage() {
+        #expect(MenuBarIconState.complete.systemImageName == "checkmark.circle.fill")
     }
 
     @Test("Lost state returns correct system image")
@@ -126,9 +136,19 @@ struct MenuBarIconStateTests {
         #expect(MenuBarIconState.incomplete.overlaySymbol == "circle.fill")
     }
 
+    @Test("Playing state has timer overlay")
+    func testPlayingOverlaySymbol() {
+        #expect(MenuBarIconState.playing.overlaySymbol == "timer")
+    }
+
     @Test("Paused state has pause overlay")
     func testPausedOverlaySymbol() {
         #expect(MenuBarIconState.paused.overlaySymbol == "pause.fill")
+    }
+
+    @Test("Complete state has check overlay")
+    func testCompleteOverlaySymbol() {
+        #expect(MenuBarIconState.complete.overlaySymbol == "checkmark.circle.fill")
     }
 
     @Test("Lost state has X overlay")

@@ -36,7 +36,7 @@ final class GameState {
     private let gameTimer = GameTimer()
     /// Handles VoiceOver announcements with debouncing.
     private let announcer = AccessibilityAnnouncer()
-    /// Cache the last UTC daily seed we checked for rollover to avoid redundant calculations
+    /// Cache the last UTC daily seed we checked for rollover to avoid redundant calculations.
     private var lastRolloverCheckSeed: Int64?
 
     /// Whether continuous play mode is enabled.
@@ -278,23 +278,21 @@ final class GameState {
 
         let todaySeed = seedFromDate(Date())
 
-        // Check if we've already checked this UTC day (cache optimization)
-        if lastRolloverCheckSeed == todaySeed, dailySeed == todaySeed {
+        // Check if we've already checked this UTC daily seed (cache optimization).
+        if lastRolloverCheckSeed == todaySeed {
             return
         }
 
+        lastRolloverCheckSeed = todaySeed
+
         // Already on today's puzzle
-        guard dailySeed != todaySeed else {
-            lastRolloverCheckSeed = todaySeed
-            return
-        }
+        guard dailySeed != todaySeed else { return }
 
         // Game is in progress - delay rollover
         guard status != .playing else { return }
 
         // Roll over to today's puzzle
         rolloverToNewDay(seed: todaySeed)
-        lastRolloverCheckSeed = todaySeed
     }
 
     /// Performs a rollover to a new day's puzzle.

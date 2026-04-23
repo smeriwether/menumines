@@ -5,6 +5,7 @@ struct GameBoardView: View {
     let gameStatus: GameStatus
     let selectedRow: Int
     let selectedCol: Int
+    let isFlagMode: Bool
     let onReveal: (Int, Int) -> Void
     let onFlag: (Int, Int) -> Void
 
@@ -19,7 +20,15 @@ struct GameBoardView: View {
                             col: col,
                             gameStatus: gameStatus,
                             isSelected: row == selectedRow && col == selectedCol,
-                            onReveal: { onReveal(row, col) },
+                            isChordReady: isChordReady(row: row, col: col),
+                            isFlagMode: isFlagMode,
+                            onReveal: {
+                                if shouldApplyFlagMode(row: row, col: col) {
+                                    onFlag(row, col)
+                                } else {
+                                    onReveal(row, col)
+                                }
+                            },
                             onFlag: { onFlag(row, col) }
                         )
                     }
@@ -27,6 +36,25 @@ struct GameBoardView: View {
             }
         }
         .background(Color(nsColor: .separatorColor))
+    }
+
+    private func isChordReady(row: Int, col: Int) -> Bool {
+        guard gameStatus == .playing else { return false }
+        guard case .revealed(let adjacentMines) = board.cells[row][col].state, adjacentMines > 0 else {
+            return false
+        }
+        return board.adjacentFlagCount(row: row, col: col) == adjacentMines
+    }
+
+    private func shouldApplyFlagMode(row: Int, col: Int) -> Bool {
+        guard isFlagMode, gameStatus == .playing else { return false }
+
+        switch board.cells[row][col].state {
+        case .hidden, .flagged:
+            return true
+        case .revealed:
+            return false
+        }
     }
 }
 
@@ -59,6 +87,7 @@ extension Board {
         gameStatus: .playing,
         selectedRow: 4,
         selectedCol: 4,
+        isFlagMode: false,
         onReveal: { _, _ in },
         onFlag: { _, _ in }
     )
@@ -71,6 +100,7 @@ extension Board {
         gameStatus: .notStarted,
         selectedRow: 0,
         selectedCol: 0,
+        isFlagMode: false,
         onReveal: { _, _ in },
         onFlag: { _, _ in }
     )

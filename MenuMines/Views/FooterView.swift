@@ -6,7 +6,9 @@ struct FooterView: View {
 
     let isGameComplete: Bool
     let canReset: Bool
+    let isFlagMode: Bool
     let onReset: () -> Void
+    let onToggleFlagMode: () -> Void
     let onShare: () -> Void
     let onAbout: () -> Void
 
@@ -33,6 +35,18 @@ struct FooterView: View {
 
             Spacer()
                 .layoutPriority(1)
+
+            Button {
+                onToggleFlagMode()
+            } label: {
+                Image(systemName: isFlagMode ? "flag.fill" : "flag")
+            }
+            .buttonStyle(.borderless)
+            .fixedSize()
+            .foregroundStyle(isFlagMode ? Color.accentColor : Color.primary)
+            .disabled(isGameComplete)
+            .help(String(localized: "flag_mode_button_help"))
+            .accessibilityLabel(isFlagMode ? String(localized: "flag_mode_on_accessibility") : String(localized: "flag_mode_off_accessibility"))
 
             Button {
                 showControls.toggle()
@@ -110,6 +124,7 @@ private struct ControlsPopoverView: View {
                 controlRow(key: "↑ ↓ ← →", action: String(localized: "controls_move"))
                 controlRow(key: "Space", action: String(localized: "controls_reveal"))
                 controlRow(key: "F", action: String(localized: "controls_flag"))
+                controlRow(key: "🚩", action: String(localized: "controls_flag_mode"))
                 controlRow(key: "⌘R", action: String(localized: "controls_reset"))
             }
             .font(.system(.body, design: .monospaced))
@@ -124,18 +139,34 @@ private struct ControlsPopoverView: View {
             Text(action)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(key): \(action)")
+        .accessibilityLabel(String(format: String(localized: "metric_accessibility_label"), key, action))
     }
 }
 
 // MARK: - Previews
 
 #Preview("Footer - Game In Progress") {
-    FooterView(isGameComplete: false, canReset: true, onReset: {}, onShare: {}, onAbout: {})
+    FooterView(
+        isGameComplete: false,
+        canReset: true,
+        isFlagMode: false,
+        onReset: {},
+        onToggleFlagMode: {},
+        onShare: {},
+        onAbout: {}
+    )
         .padding()
 }
 
 #Preview("Footer - Game Complete") {
-    FooterView(isGameComplete: true, canReset: true, onReset: {}, onShare: {}, onAbout: {})
+    FooterView(
+        isGameComplete: true,
+        canReset: true,
+        isFlagMode: true,
+        onReset: {},
+        onToggleFlagMode: {},
+        onShare: {},
+        onAbout: {}
+    )
         .padding()
 }
