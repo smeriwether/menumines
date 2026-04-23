@@ -17,6 +17,18 @@ struct DailyRolloverTests {
         UserDefaults.standard.removeObject(forKey: "dailyStatsRecordedSeed")
         let todaySeed = seedFromDate(Date())
         UserDefaults.standard.removeObject(forKey: "dailyStats_\(todaySeed)")
+        if let previousSeed = previousDailySeed() {
+            UserDefaults.standard.removeObject(forKey: "dailyStats_\(previousSeed)")
+        }
+    }
+
+    private func previousDailySeed() -> Int64? {
+        let todaySeed = seedFromDate(Date())
+        guard let today = dateFromSeed(todaySeed),
+              let previousDay = utcCalendar.date(byAdding: .day, value: -1, to: today) else {
+            return nil
+        }
+        return seedFromDate(previousDay)
     }
 
     private func findSafeCell(in board: Board) -> (row: Int, col: Int)? {
@@ -275,6 +287,37 @@ struct DailyRolloverTests {
 
         #expect(gameState.status == .playing, "Should still be playing")
         #expect(gameState.board == boardBefore, "Board should not change")
+    }
+
+    @Test("checkForDailyRollover rolls over after previously delayed in-progress game completes")
+    func testCheckRolloverAfterDelayedGameCompletes() {
+        clearAllUserDefaults()
+        defer { clearAllUserDefaults() }
+
+        guard let previousSeed = previousDailySeed() else {
+            Issue.record("Failed to construct previous UTC daily seed")
+            return
+        }
+
+        let gameState = GameState(board: Board(seed: previousSeed), dailySeed: previousSeed)
+
+        guard let safe = findSafeCell(in: gameState.board) else {
+            Issue.record("No safe cell found")
+            return
+        }
+        gameState.reveal(row: safe.row, col: safe.col)
+        #expect(gameState.status == .playing)
+
+        gameState.checkForDailyRollover()
+        #expect(gameState.dailySeed == previousSeed, "Rollover should be delayed while playing")
+
+        winGame(gameState)
+        #expect(gameState.status == .won)
+
+        gameState.checkForDailyRollover()
+
+        #expect(gameState.dailySeed == seedFromDate(Date()), "Completed stale game should roll over on the next check")
+        #expect(gameState.status == .notStarted)
     }
 
     @Test("checkForDailyRollover triggers rollover when game is not in progress")

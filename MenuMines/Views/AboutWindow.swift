@@ -58,8 +58,10 @@ private struct AboutView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Link(String(localized: "about_support_email"), destination: URL(string: "mailto:support@merimerimeri.com")!)
-                .font(.caption)
+            if let supportURL = URL(string: "mailto:support@merimerimeri.com") {
+                Link(String(localized: "about_support_email"), destination: supportURL)
+                    .font(.caption)
+            }
 
             Text(String(localized: "about_copyright"))
                 .font(.caption)

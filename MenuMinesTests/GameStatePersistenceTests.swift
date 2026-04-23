@@ -520,6 +520,40 @@ struct GameStatePersistenceTests {
         #expect(stats?.won == true, "Stats should indicate win")
     }
 
+    @Test("Daily completion is recorded against the active puzzle seed")
+    func testDailyCompletionUsesActivePuzzleSeed() {
+        let todaySeed = seedFromDate(Date())
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        guard let today = dateFromSeed(todaySeed),
+              let previousDay = calendar.date(byAdding: .day, value: -1, to: today) else {
+            Issue.record("Failed to construct previous UTC day")
+            return
+        }
+        let previousSeed = seedFromDate(previousDay)
+
+        UserDefaults.standard.removeObject(forKey: "dailyCompletionSeed")
+        UserDefaults.standard.removeObject(forKey: "dailyStatsRecordedSeed")
+        UserDefaults.standard.removeObject(forKey: "dailyStats_\(todaySeed)")
+        UserDefaults.standard.removeObject(forKey: "dailyStats_\(previousSeed)")
+        defer {
+            UserDefaults.standard.removeObject(forKey: "dailyCompletionSeed")
+            UserDefaults.standard.removeObject(forKey: "dailyStatsRecordedSeed")
+            UserDefaults.standard.removeObject(forKey: "dailyStats_\(todaySeed)")
+            UserDefaults.standard.removeObject(forKey: "dailyStats_\(previousSeed)")
+        }
+
+        let gameState = GameState(board: Board(seed: previousSeed), dailySeed: previousSeed)
+
+        winGame(gameState)
+
+        #expect(isDailyPuzzleComplete(for: previousDay), "Previous puzzle seed should be marked complete")
+        #expect(!isDailyPuzzleComplete(), "Today's puzzle should not be marked complete")
+        #expect(hasStatsBeenRecorded(forSeed: previousSeed), "Stats should be recorded for previous seed")
+        #expect(getStats(forSeed: previousSeed)?.won == true, "Previous seed stats should reflect the win")
+        #expect(getStats(forSeed: todaySeed) == nil, "No stats should be written under today's seed")
+    }
+
     @Test("Stats are recorded on loss")
     func testStatsRecordedOnLoss() {
         UserDefaults.standard.removeObject(forKey: "dailyCompletionSeed")
