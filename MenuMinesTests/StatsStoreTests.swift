@@ -47,6 +47,39 @@ struct StatsStoreTests {
         #expect(store.longestStreak == 0)
     }
 
+    @Test("History calendar groups results by local completion day")
+    func testHistoryCalendarGroupsResultsByLocalCompletionDay() throws {
+        guard let timeZone = TimeZone(identifier: "America/New_York") else {
+            Issue.record("Missing test time zone")
+            return
+        }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+
+        let completedAt = try #require(calendar.date(from: DateComponents(
+            timeZone: timeZone,
+            year: 2026,
+            month: 4,
+            day: 23,
+            hour: 21,
+            minute: 12
+        )))
+        let result = makeResult(won: true, dailySeed: 20260424, completedAt: completedAt)
+        let resultsByLocalDay = StatsHistoryCalendar.resultsByLocalDay([result], calendar: calendar)
+
+        let localCompletionDay = calendar.startOfDay(for: completedAt)
+        let nextLocalDay = try #require(calendar.date(from: DateComponents(
+            timeZone: timeZone,
+            year: 2026,
+            month: 4,
+            day: 24
+        )))
+
+        #expect(resultsByLocalDay[localCompletionDay] == result)
+        #expect(resultsByLocalDay[nextLocalDay] == nil)
+    }
+
     // MARK: - Games Played
 
     @Test("Games played counts all results")

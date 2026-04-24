@@ -279,10 +279,7 @@ private struct DailyCompletionCalendarView: View {
     @State private var displayedMonth = Self.currentMonthStart()
 
     private static var calendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .gmt
-        calendar.firstWeekday = Calendar.current.firstWeekday
-        return calendar
+        Calendar.current
     }
 
     private static func currentMonthStart() -> Date {
@@ -356,7 +353,6 @@ private struct DailyCompletionCalendarView: View {
     private var monthTitle: String {
         let formatter = DateFormatter()
         formatter.calendar = Self.calendar
-        formatter.timeZone = .gmt
         formatter.locale = .current
         formatter.dateFormat = "LLLL yyyy"
         return formatter.string(from: displayedMonth)
@@ -364,6 +360,7 @@ private struct DailyCompletionCalendarView: View {
 
     private var weekdaySymbols: [String] {
         let formatter = DateFormatter()
+        formatter.calendar = Self.calendar
         formatter.locale = .current
         let symbols = formatter.veryShortWeekdaySymbols ?? []
         guard symbols.count == 7 else { return symbols }
@@ -388,15 +385,19 @@ private struct DailyCompletionCalendarView: View {
 
         for day in dayRange {
             guard let date = calendar.date(byAdding: .day, value: day - 1, to: displayedMonth) else { continue }
-            cells.append(CalendarCell(id: "day-\(seedFromDate(date))", date: date, day: day))
+            cells.append(CalendarCell(id: "day-\(day)", date: date, day: day))
         }
 
         return cells
     }
 
+    private var resultsByLocalDay: [Date: GameResult] {
+        StatsHistoryCalendar.resultsByLocalDay(Array(resultsBySeed.values), calendar: Self.calendar)
+    }
+
     private func result(for cell: CalendarCell) -> GameResult? {
         guard let date = cell.date else { return nil }
-        return resultsBySeed[seedFromDate(date)]
+        return resultsByLocalDay[Self.calendar.startOfDay(for: date)]
     }
 
     private func isToday(_ cell: CalendarCell) -> Bool {
@@ -407,6 +408,19 @@ private struct DailyCompletionCalendarView: View {
     private func moveMonth(by value: Int) {
         guard let month = Self.calendar.date(byAdding: .month, value: value, to: displayedMonth) else { return }
         displayedMonth = month
+    }
+}
+
+enum StatsHistoryCalendar {
+    static func resultsByLocalDay(_ results: [GameResult], calendar: Calendar = .current) -> [Date: GameResult] {
+        results.reduce(into: [:]) { groupedResults, result in
+            let completedDay = calendar.startOfDay(for: result.completedAt)
+            if let existingResult = groupedResults[completedDay],
+               existingResult.completedAt > result.completedAt {
+                return
+            }
+            groupedResults[completedDay] = result
+        }
     }
 }
 
@@ -472,8 +486,7 @@ private struct CalendarDayCell: View {
     private var accessibilityLabel: String {
         guard let date = cell.date else { return "" }
         let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.timeZone = .gmt
+        formatter.calendar = Calendar.current
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         let dateString = formatter.string(from: date)
