@@ -149,17 +149,6 @@ struct MenuBarIconView: View {
         }
     }
 
-    private var detailText: String? {
-        switch state {
-        case .playing, .paused:
-            return formatTime(elapsedTime)
-        case .complete where currentStreak > 1:
-            return "\(currentStreak)"
-        case .normal, .incomplete, .complete, .lost:
-            return nil
-        }
-    }
-
     private var overlayName: String? {
         state.overlaySymbol
     }
@@ -193,15 +182,10 @@ struct MenuBarIconView: View {
                         .offset(x: 5, y: 4)
                 }
             }
-
-            if let detailText {
-                Text(detailText)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .monospacedDigit()
-            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
+        .frame(width: 22, alignment: .center)
     }
 
     private func formatTime(_ seconds: TimeInterval) -> String {

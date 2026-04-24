@@ -76,28 +76,21 @@
 "stats_tab_history" = "History";
 "stats_tab_recent" = "Recent";
 "stats_calendar_title" = "Daily History";
+"stats_calendar_today" = "Today";
+"stats_calendar_today_accessibility" = "Show today in daily history";
 "stats_calendar_previous_month" = "Previous month";
 "stats_calendar_next_month" = "Next month";
 "stats_calendar_month_accessibility" = "Daily history for %@";
 "stats_calendar_day_not_played" = "%@, not played";
 "stats_calendar_day_won" = "%@, won";
 "stats_calendar_day_lost" = "%@, lost";
+"stats_calendar_day_today_prefix" = "Today, %@";
 "stats_recent_title" = "Recent Daily Results";
 "stats_recent_empty" = "No daily results yet.";
 "stats_result_won" = "Won";
 "stats_result_lost" = "Lost";
 "stats_recent_accessibility_label" = "%@, %@, %@";
 "metric_accessibility_label" = "%@: %@";
-
-/* Post-game summary */
-"post_game_won_title" = "Daily complete";
-"post_game_lost_title" = "Daily ended";
-"post_game_random_won_title" = "Puzzle complete";
-"post_game_random_lost_title" = "Puzzle ended";
-"post_game_time" = "Time";
-"post_game_flags" = "Flags";
-"post_game_best" = "Best";
-"post_game_streak" = "Streak";
 
 /* Controls popover */
 "controls_button_accessibility" = "Show keyboard controls";

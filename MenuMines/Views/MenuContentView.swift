@@ -13,9 +13,7 @@ struct MenuContentView: View {
         gameState.status == .won || gameState.status == .lost
     }
 
-    private var contentHeight: CGFloat {
-        isGameComplete ? 440 : 372
-    }
+    private let contentHeight: CGFloat = 372
 
     private func copyShareTextToClipboard() {
         let shareDate = gameState.puzzleType == .daily ? dateFromSeed(gameState.dailySeed) ?? Date() : Date()
@@ -56,7 +54,7 @@ struct MenuContentView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             VStack(spacing: 12) {
                 HeaderView(
                     status: gameState.status,
@@ -79,15 +77,6 @@ struct MenuContentView: View {
                         gameState.toggleFlag(row: row, col: col)
                     }
                 )
-
-                if isGameComplete {
-                    PostGameSummaryView(
-                        status: gameState.status,
-                        elapsedTime: gameState.elapsedTime,
-                        flagCount: gameState.flagCount,
-                        puzzleType: gameState.puzzleType
-                    )
-                }
 
                 FooterView(
                     isGameComplete: isGameComplete,
@@ -123,7 +112,7 @@ struct MenuContentView: View {
             }
         }
         .frame(width: 300, height: contentHeight, alignment: .top)
-        .animation(.easeOut(duration: 0.12), value: isGameComplete)
+        .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             gameState.checkForDailyRollover()
             gameState.checkContinuousPlaySetting()
@@ -156,91 +145,6 @@ struct MenuContentView: View {
                 }
             }
         }
-    }
-}
-
-/// Compact completion summary shown immediately after a win or loss.
-private struct PostGameSummaryView: View {
-    let status: GameStatus
-    let elapsedTime: TimeInterval
-    let flagCount: Int
-    let puzzleType: PuzzleType
-
-    private var store: StatsStore {
-        StatsStore.shared
-    }
-
-    private var title: String {
-        switch status {
-        case .won:
-            return puzzleType == .daily
-                ? String(localized: "post_game_won_title")
-                : String(localized: "post_game_random_won_title")
-        case .lost:
-            return puzzleType == .daily
-                ? String(localized: "post_game_lost_title")
-                : String(localized: "post_game_random_lost_title")
-        case .notStarted, .playing:
-            return ""
-        }
-    }
-
-    private var bestTime: TimeInterval? {
-        puzzleType == .daily ? store.dailyBestTime : store.bestTime
-    }
-
-    private var formattedTime: String {
-        formatTime(elapsedTime)
-    }
-
-    private var formattedBestTime: String {
-        guard let bestTime else { return String(localized: "stats_no_data") }
-        return formatTime(bestTime)
-    }
-
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-
-                Spacer()
-            }
-
-            HStack(spacing: 12) {
-                summaryMetric(label: String(localized: "post_game_time"), value: formattedTime)
-                summaryMetric(label: String(localized: "post_game_flags"), value: "\(flagCount)/\(Board.mineCount)")
-                summaryMetric(label: String(localized: "post_game_best"), value: formattedBestTime)
-                if puzzleType == .daily {
-                    summaryMetric(label: String(localized: "post_game_streak"), value: "\(store.currentStreak)")
-                }
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-    }
-
-    private func summaryMetric(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.caption)
-                .fontWeight(.medium)
-                .monospacedDigit()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(format: String(localized: "metric_accessibility_label"), label, value))
-    }
-
-    private func formatTime(_ seconds: TimeInterval) -> String {
-        let totalSeconds = Int(seconds)
-        let minutes = totalSeconds / 60
-        let secs = totalSeconds % 60
-        return String(format: "%02d:%02d", minutes, secs)
     }
 }
 

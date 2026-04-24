@@ -301,6 +301,14 @@ private struct DailyCompletionCalendarView: View {
 
                 Spacer()
 
+                Button(String(localized: "stats_calendar_today")) {
+                    displayedMonth = Self.currentMonthStart()
+                }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .disabled(isShowingCurrentOrFutureMonth)
+                    .accessibilityLabel(String(localized: "stats_calendar_today_accessibility"))
+
                 Button {
                     moveMonth(by: -1)
                 } label: {
@@ -335,7 +343,11 @@ private struct DailyCompletionCalendarView: View {
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 6) {
                 ForEach(calendarCells) { cell in
-                    CalendarDayCell(cell: cell, result: result(for: cell))
+                    CalendarDayCell(
+                        cell: cell,
+                        result: result(for: cell),
+                        isToday: isToday(cell)
+                    )
                 }
             }
         }
@@ -387,6 +399,11 @@ private struct DailyCompletionCalendarView: View {
         return resultsBySeed[seedFromDate(date)]
     }
 
+    private func isToday(_ cell: CalendarCell) -> Bool {
+        guard let date = cell.date else { return false }
+        return Self.calendar.isDate(date, inSameDayAs: Date())
+    }
+
     private func moveMonth(by value: Int) {
         guard let month = Self.calendar.date(byAdding: .month, value: value, to: displayedMonth) else { return }
         displayedMonth = month
@@ -402,6 +419,7 @@ private struct CalendarCell: Identifiable {
 private struct CalendarDayCell: View {
     let cell: CalendarCell
     let result: GameResult?
+    let isToday: Bool
 
     var body: some View {
         ZStack {
@@ -409,7 +427,7 @@ private struct CalendarDayCell: View {
                 .fill(fillColor)
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .stroke(borderColor, lineWidth: 1)
+                        .stroke(borderColor, lineWidth: borderLineWidth)
                 )
 
             if let day = cell.day {
@@ -434,10 +452,17 @@ private struct CalendarDayCell: View {
     }
 
     private var borderColor: Color {
+        if isToday {
+            return Color.accentColor
+        }
         guard let result else {
             return Color(nsColor: .separatorColor).opacity(0.7)
         }
         return result.won ? Color.accentColor.opacity(0.65) : Color.red.opacity(0.55)
+    }
+
+    private var borderLineWidth: CGFloat {
+        isToday ? 2 : 1
     }
 
     private var textColor: Color {
@@ -454,12 +479,23 @@ private struct CalendarDayCell: View {
         let dateString = formatter.string(from: date)
 
         guard let result else {
-            return String(format: String(localized: "stats_calendar_day_not_played"), dateString)
+            return todayAdjustedAccessibilityLabel(
+                String(format: String(localized: "stats_calendar_day_not_played"), dateString)
+            )
         }
         if result.won {
-            return String(format: String(localized: "stats_calendar_day_won"), dateString)
+            return todayAdjustedAccessibilityLabel(
+                String(format: String(localized: "stats_calendar_day_won"), dateString)
+            )
         }
-        return String(format: String(localized: "stats_calendar_day_lost"), dateString)
+        return todayAdjustedAccessibilityLabel(
+            String(format: String(localized: "stats_calendar_day_lost"), dateString)
+        )
+    }
+
+    private func todayAdjustedAccessibilityLabel(_ label: String) -> String {
+        guard isToday else { return label }
+        return String(format: String(localized: "stats_calendar_day_today_prefix"), label)
     }
 }
 
