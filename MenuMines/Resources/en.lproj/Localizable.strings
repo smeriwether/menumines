@@ -7,6 +7,9 @@
 "settings_menu_item" = "Settings...";
 "quit_menu_item" = "Quit MenuMines";
 "footer_menu_accessibility_label" = "App menu";
+"puzzle_type_daily" = "Daily";
+"puzzle_type_random" = "Random";
+"puzzle_type_accessibility_label" = "%@ puzzle";
 
 /* Game status */
 "status_ready" = "Ready to play";

@@ -80,6 +80,7 @@ struct MenuContentView: View {
 
                 FooterView(
                     isGameComplete: isGameComplete,
+                    puzzleType: gameState.puzzleType,
                     canReset: gameState.canReset,
                     isFlagMode: isFlagMode,
                     onReset: handleResetRequest,

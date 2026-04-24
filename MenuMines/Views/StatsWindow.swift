@@ -531,7 +531,7 @@ private struct RecentDailyResultsView: View {
                             .frame(width: 7, height: 7)
                             .accessibilityHidden(true)
 
-                        Text(formattedDate(forSeed: result.dailySeed))
+                        Text(StatsRecentResults.formattedDate(for: result))
                             .foregroundStyle(.primary)
 
                         Spacer()
@@ -551,21 +551,11 @@ private struct RecentDailyResultsView: View {
         }
     }
 
-    private func formattedDate(forSeed seed: Int64) -> String {
-        guard let date = dateFromSeed(seed) else { return "\(seed)" }
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.timeZone = .gmt
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
-    }
-
     private func accessibilityLabel(for result: GameResult) -> String {
         let status = result.won ? String(localized: "stats_result_won") : String(localized: "stats_result_lost")
         return String(
             format: String(localized: "stats_recent_accessibility_label"),
-            formattedDate(forSeed: result.dailySeed),
+            StatsRecentResults.formattedDate(for: result),
             status,
             formatTime(result.elapsedTime)
         )
@@ -576,6 +566,21 @@ private struct RecentDailyResultsView: View {
         let minutes = totalSeconds / 60
         let secs = totalSeconds % 60
         return String(format: "%02d:%02d", minutes, secs)
+    }
+}
+
+enum StatsRecentResults {
+    static func displayDate(for result: GameResult, calendar: Calendar = .current) -> Date {
+        calendar.startOfDay(for: result.completedAt)
+    }
+
+    static func formattedDate(for result: GameResult, calendar: Calendar = .current, locale: Locale = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = locale
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: displayDate(for: result, calendar: calendar))
     }
 }
 

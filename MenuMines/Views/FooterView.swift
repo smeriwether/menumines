@@ -5,6 +5,7 @@ struct FooterView: View {
     @Environment(\.openWindow) private var openWindow
 
     let isGameComplete: Bool
+    let puzzleType: PuzzleType
     let canReset: Bool
     let isFlagMode: Bool
     let onReset: () -> Void
@@ -15,9 +16,27 @@ struct FooterView: View {
     @State private var showCopiedFeedback = false
     @State private var showControls = false
 
+    private var puzzleTypeLabel: String {
+        switch puzzleType {
+        case .daily:
+            String(localized: "puzzle_type_daily")
+        case .random:
+            String(localized: "puzzle_type_random")
+        }
+    }
+
+    private var puzzleTypeIconName: String {
+        switch puzzleType {
+        case .daily:
+            "calendar"
+        case .random:
+            "shuffle"
+        }
+    }
+
     var body: some View {
         HStack {
-            // Left side: Share button
+            // Left side: puzzle type while playing, share action after completion.
             if isGameComplete {
                 Button(showCopiedFeedback ? String(localized: "share_copied") : String(localized: "share_button")) {
                     onShare()
@@ -31,6 +50,18 @@ struct FooterView: View {
                 .buttonStyle(.bordered)
                 .fixedSize()
                 .accessibilityLabel(String(localized: "share_button"))
+            } else {
+                HStack(spacing: 4) {
+                    Image(systemName: puzzleTypeIconName)
+                        .font(.caption)
+                    Text(puzzleTypeLabel)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .foregroundStyle(.secondary)
+                .fixedSize()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(String(format: String(localized: "puzzle_type_accessibility_label"), puzzleTypeLabel))
             }
 
             Spacer()
@@ -148,6 +179,7 @@ private struct ControlsPopoverView: View {
 #Preview("Footer - Game In Progress") {
     FooterView(
         isGameComplete: false,
+        puzzleType: .daily,
         canReset: true,
         isFlagMode: false,
         onReset: {},
@@ -161,6 +193,7 @@ private struct ControlsPopoverView: View {
 #Preview("Footer - Game Complete") {
     FooterView(
         isGameComplete: true,
+        puzzleType: .random,
         canReset: true,
         isFlagMode: true,
         onReset: {},
