@@ -271,22 +271,29 @@ final class GameState {
     /// - AND the game is not in progress (status != .playing)
     ///
     /// If game is in progress, it continues until completion.
-    /// Random puzzles are not date-bound and skip rollover checks.
+    /// Random puzzles are not date-bound, but should yield to a new daily puzzle
+    /// once today's daily is available and incomplete.
     func checkForDailyRollover() {
-        // Random puzzles are not tied to dates - skip rollover check
-        guard puzzleType == .daily else { return }
-
         let todaySeed = seedFromDate(Date())
 
-        // Check if we've already checked this UTC daily seed (cache optimization).
-        if lastRolloverCheckSeed == todaySeed {
+        if puzzleType == .random {
+            guard !isDailyPuzzleComplete(forSeed: todaySeed) else { return }
+            guard status != .playing else { return }
+
+            rolloverToNewDay(seed: todaySeed)
             return
         }
 
-        lastRolloverCheckSeed = todaySeed
+        // Check if we've already confirmed this UTC daily seed is current.
+        if lastRolloverCheckSeed == todaySeed, dailySeed == todaySeed {
+            return
+        }
 
         // Already on today's puzzle
-        guard dailySeed != todaySeed else { return }
+        guard dailySeed != todaySeed else {
+            lastRolloverCheckSeed = todaySeed
+            return
+        }
 
         // Game is in progress - delay rollover
         guard status != .playing else { return }

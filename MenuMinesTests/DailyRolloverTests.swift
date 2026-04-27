@@ -13,6 +13,7 @@ struct DailyRolloverTests {
 
     private func clearAllUserDefaults() {
         GameSnapshot.clear()
+        GameSnapshot.withStorageKey(GameSnapshot.dailyNamespace) { GameSnapshot.clear() }
         UserDefaults.standard.removeObject(forKey: "dailyCompletionSeed")
         UserDefaults.standard.removeObject(forKey: "dailyStatsRecordedSeed")
         let todaySeed = seedFromDate(Date())
@@ -403,6 +404,61 @@ struct DailyRolloverTests {
         let todaySeed = seedFromDate(Date())
         let expectedBoard = Board(seed: todaySeed)
         #expect(gameState.board == expectedBoard, "Should have today's board")
+    }
+
+    @Test("checkForDailyRollover replaces idle random puzzle when today's daily is incomplete")
+    func testCheckRolloverReplacesIdleRandomPuzzleWhenDailyIncomplete() {
+        clearAllUserDefaults()
+        defer { clearAllUserDefaults() }
+
+        let randomSeed: Int64 = -12345
+        let gameState = GameState(
+            board: Board(seed: randomSeed),
+            dailySeed: randomSeed,
+            puzzleType: .random
+        )
+
+        gameState.checkForDailyRollover()
+
+        let todaySeed = seedFromDate(Date())
+        #expect(gameState.puzzleType == .daily, "Idle random puzzle should yield to today's daily")
+        #expect(gameState.dailySeed == todaySeed, "Game should be on today's seed")
+        #expect(gameState.status == .notStarted, "New daily should not be started")
+        #expect(gameState.board == Board(seed: todaySeed), "Board should be today's daily board")
+    }
+
+    @Test("checkForDailyRollover delays active random puzzle until completion")
+    func testCheckRolloverDelaysActiveRandomPuzzleUntilCompletion() {
+        clearAllUserDefaults()
+        defer { clearAllUserDefaults() }
+
+        let randomSeed: Int64 = -67890
+        let gameState = GameState(
+            board: Board(seed: randomSeed),
+            dailySeed: randomSeed,
+            puzzleType: .random
+        )
+
+        guard let safe = findSafeCell(in: gameState.board) else {
+            Issue.record("No safe cell found")
+            return
+        }
+
+        gameState.reveal(row: safe.row, col: safe.col)
+        #expect(gameState.status == .playing)
+
+        gameState.checkForDailyRollover()
+
+        #expect(gameState.puzzleType == .random, "Active random puzzle should continue")
+        #expect(gameState.dailySeed == randomSeed, "Random seed should be preserved while playing")
+
+        gameState.status = .won
+        gameState.checkForDailyRollover()
+
+        let todaySeed = seedFromDate(Date())
+        #expect(gameState.puzzleType == .daily, "Completed random puzzle should yield to today's daily")
+        #expect(gameState.dailySeed == todaySeed, "Game should move to today's seed after random completion")
+        #expect(gameState.status == .notStarted, "New daily should not be started")
     }
 
     // MARK: - Scenario Integration Tests
