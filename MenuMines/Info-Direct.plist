@@ -9,7 +9,7 @@
 	<key>SENTRY_DSN</key>
 	<string>$(SENTRY_DSN)</string>
 	<key>SUFeedURL</key>
-	<string>https://github.com/MeriMeriMeri/menumines/releases/latest/download/appcast.xml</string>
+	<string>https://github.com/smeriwether/menumines/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>$(SPARKLE_PUBLIC_ED_KEY)</string>
 	<key>SUEnableAutomaticChecks</key>

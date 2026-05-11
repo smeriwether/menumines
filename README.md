@@ -27,7 +27,7 @@ Download the latest release from the Releases page.
 Requires Xcode 15+ and macOS 14+ (Sonoma).
 
 ```bash
-git clone https://github.com/MeriMeriMeri/menumines.git
+git clone https://github.com/smeriwether/menumines.git
 cd menumines
 xcodebuild build \
   -scheme MenuMines \
