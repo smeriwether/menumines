@@ -161,7 +161,8 @@ def create_certificate(client, temp_dir, certificate_type:, common_name:, prefix
   )
 
   certificate = response.fetch("data")
-  File.binwrite(cer_path, Base64.decode64(certificate.fetch("attributes").fetch("certificateContent")))
+  certificate_der = Base64.decode64(certificate.fetch("attributes").fetch("certificateContent"))
+  File.binwrite(cer_path, certificate_der)
   run_command("openssl", "x509", "-inform", "DER", "-in", cer_path, "-out", pem_path)
   run_command(
     "openssl", "pkcs12",
@@ -172,9 +173,14 @@ def create_certificate(client, temp_dir, certificate_type:, common_name:, prefix
     "-passout", "pass:#{env_fetch("KEYCHAIN_PASSWORD")}"
   )
 
+  x509 = OpenSSL::X509::Certificate.new(certificate_der)
+  sha1 = OpenSSL::Digest::SHA1.hexdigest(certificate_der).upcase
+  puts "Created #{certificate_type} certificate #{sha1}: #{x509.subject}"
+
   {
     id: certificate.fetch("id"),
-    p12_path: p12_path
+    p12_path: p12_path,
+    sha1: sha1
   }
 end
 
@@ -272,8 +278,10 @@ def prepare
   append_env(
     "APPLE_CERTIFICATE_PATH" => certificate.fetch(:p12_path),
     "APPLE_CERTIFICATE_PASSWORD" => env_fetch("KEYCHAIN_PASSWORD"),
+    "APPLE_CERTIFICATE_SHA1" => certificate.fetch(:sha1),
     "INSTALLER_CERTIFICATE_PATH" => installer_certificate.fetch(:p12_path),
     "INSTALLER_CERTIFICATE_PASSWORD" => env_fetch("KEYCHAIN_PASSWORD"),
+    "INSTALLER_CERTIFICATE_SHA1" => installer_certificate.fetch(:sha1),
     "APP_PROVISIONING_PROFILE_PATH" => File.join(temp_dir, "mac.provisionprofile"),
     "APP_PROFILE_NAME" => profile.fetch(:name),
     "ASC_CREATED_CERTIFICATE_IDS" => [certificate.fetch(:id), installer_certificate.fetch(:id)].join(","),
