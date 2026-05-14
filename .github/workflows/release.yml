@@ -5,6 +5,16 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (for example, 1.0.0)'
+        required: true
+      release_notes:
+        description: 'GitHub release notes'
+        required: false
+
+permissions:
+  contents: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -17,46 +27,94 @@ env:
   EXPORT_PATH: build/export
   KEYCHAIN_NAME: build.keychain-db
   KEYCHAIN_PASSWORD: temporary-ci-password
+  APPLE_TEAM_ID: 8G4H6268W7
+  APP_BUNDLE_ID: com.merimerimeri.MenuMines
 
 jobs:
   release:
-    name: Archive and Upload to TestFlight
-    runs-on: macos-15
-    timeout-minutes: 30
+    name: Archive, Upload, and Publish
+    runs-on: macos-26
+    timeout-minutes: 60
     if: ${{ !contains(github.ref_name, '-direct') }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Select Xcode 16.2
-        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+        with:
+          fetch-depth: 0
 
       - name: Show Build Environment
         run: |
           xcodebuild -version
           swift --version
 
-      # ── Certificate & Provisioning Profile Installation ──
+      - name: Verify Xcode 26
+        run: |
+          XCODE_VERSION=$(xcodebuild -version | awk '/Xcode/ { print $2 }')
+          case "$XCODE_VERSION" in
+            26.*) ;;
+            *) echo "Expected Xcode 26.x, found $XCODE_VERSION"; exit 1 ;;
+          esac
+
+      - name: Compute Version
+        env:
+          VERSION_INPUT: ${{ github.event.inputs.version }}
+        run: |
+          if [ -n "$VERSION_INPUT" ]; then
+            VERSION="$VERSION_INPUT"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+
+          VERSION="${VERSION#v}"
+          TAG="v${VERSION}"
+          BUILD_NUMBER=${{ github.run_number }}
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "Building MenuMines $VERSION ($BUILD_NUMBER)"
+
+      - name: Run Tests
+        run: |
+          xcodebuild test \
+            -scheme "$SCHEME" \
+            -destination 'platform=macOS' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Install App Store Connect API Key
+        env:
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          mkdir -p ~/.private_keys
+          echo "$ASC_API_KEY_P8_BASE64" | base64 --decode -o ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo "ASC_API_KEY_PATH=$HOME/.private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      - name: Create Temporary App Store Signing Assets
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: ruby Tools/app_store_connect_signing.rb prepare
 
       - name: Install Apple Certificate and Provisioning Profile
-        env:
-          CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
-          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
         run: |
-          CERTIFICATE_PATH="$RUNNER_TEMP/certificate.p12"
-          PROFILE_PATH="$RUNNER_TEMP/profile.provisionprofile"
-
-          echo "$CERTIFICATE_P12_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
-          echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode -o "$PROFILE_PATH"
-
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_NAME"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
 
-          security import "$CERTIFICATE_PATH" \
-            -P "$CERTIFICATE_PASSWORD" \
+          security import "$APPLE_CERTIFICATE_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_NAME"
+
+          security import "$INSTALLER_CERTIFICATE_PATH" \
+            -P "$INSTALLER_CERTIFICATE_PASSWORD" \
             -A \
             -t cert \
             -f pkcs12 \
@@ -74,69 +132,34 @@ jobs:
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
 
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< \
-            "$(security cms -D -i "$PROFILE_PATH")")
-          cp "$PROFILE_PATH" "$PROFILES_DIR/$PROFILE_UUID.provisionprofile"
+          PROFILE_PLIST=$(security cms -D -i "$APP_PROVISIONING_PROFILE_PATH")
+          APP_PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$PROFILE_PLIST")
+          cp "$APP_PROVISIONING_PROFILE_PATH" "$PROFILES_DIR/$APP_PROFILE_UUID.provisionprofile"
 
-          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print Name" /dev/stdin <<< \
-            "$(security cms -D -i "$PROFILE_PATH")")
-
-          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
-          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "APP_PROFILE_UUID=$APP_PROFILE_UUID" >> "$GITHUB_ENV"
 
           security find-identity -v -p codesigning "$KEYCHAIN_NAME"
 
-      # ── Install App Store Connect API Key ──
-
-      - name: Install App Store Connect API Key
-        env:
-          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-        run: |
-          mkdir -p ~/.private_keys
-          echo "$ASC_API_KEY_P8_BASE64" | base64 --decode -o ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
-
-      # ── Set Build Number ──
-
-      - name: Set Build Number
-        run: |
-          BUILD_NUMBER=${{ github.run_number }}
-          echo "Using build number: $BUILD_NUMBER"
-          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
-
-      # ── Resolve SPM Dependencies ──
-
-      - name: Resolve Swift Package Dependencies
-        run: |
-          xcodebuild -resolvePackageDependencies \
-            -scheme "$SCHEME" \
-            -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm-cache"
-
-      # ── Archive ──
-
       - name: Archive
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
+          rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH"
           xcodebuild archive \
+            -project MenuMines.xcodeproj \
             -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" \
             -destination 'generic/platform=macOS' \
             -archivePath "$ARCHIVE_PATH" \
-            -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm-cache" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            PROVISIONING_PROFILE_SPECIFIER="$APP_PROFILE_NAME" \
+            MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             SENTRY_DSN="$SENTRY_DSN"
 
-      # ── Export ──
-
       - name: Generate ExportOptions.plist
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -145,53 +168,94 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>app-store</string>
+            <string>app-store-connect</string>
             <key>teamID</key>
             <string>${APPLE_TEAM_ID}</string>
-            <key>destination</key>
-            <string>upload</string>
             <key>signingStyle</key>
             <string>manual</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>installerSigningCertificate</key>
+            <string>Mac Installer Distribution</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>com.merimerimeri.menumines</key>
-              <string>${PROFILE_NAME}</string>
+              <key>${APP_BUNDLE_ID}</key>
+              <string>${APP_PROFILE_NAME}</string>
             </dict>
           </dict>
           </plist>
           EOF
 
-      - name: Export Archive
+      - name: Export Package
         run: |
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$EXPORT_PATH"
 
-      # ── Upload to TestFlight ──
+          PKG_PATH=$(find "$EXPORT_PATH" -name "*.pkg" -type f | head -1)
+          if [ -z "$PKG_PATH" ]; then
+            echo "Error: no .pkg file found in $EXPORT_PATH"
+            find "$EXPORT_PATH" -maxdepth 3 -type f -print
+            exit 1
+          fi
+
+          PKG_ASSET_NAME="MenuMines-${VERSION}-${BUILD_NUMBER}.pkg"
+          PKG_ASSET_PATH="$EXPORT_PATH/$PKG_ASSET_NAME"
+          cp "$PKG_PATH" "$PKG_ASSET_PATH"
+
+          echo "PKG_PATH=$PKG_ASSET_PATH" >> "$GITHUB_ENV"
+          echo "PKG_ASSET_NAME=$PKG_ASSET_NAME" >> "$GITHUB_ENV"
 
       - name: Upload to App Store Connect
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
-          PKG_PATH=$(find "$EXPORT_PATH" -name "*.pkg" -type f | head -1)
-
-          if [ -z "$PKG_PATH" ]; then
-            echo "Error: No .pkg file found in export path"
-            ls -laR "$EXPORT_PATH"
-            exit 1
-          fi
-
-          echo "Uploading: $PKG_PATH"
-
+          set +e
           xcrun altool --upload-app \
             --file "$PKG_PATH" \
             --type macos \
             --apiKey "$ASC_KEY_ID" \
-            --apiIssuer "$ASC_ISSUER_ID"
+            --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/altool-upload.log"
+          ALTOOL_STATUS=${PIPESTATUS[0]}
+          set -e
 
-      # ── Upload Artifacts ──
+          if [ "$ALTOOL_STATUS" -ne 0 ]; then
+            exit "$ALTOOL_STATUS"
+          fi
+
+          if grep -Eq "UPLOAD FAILED|Validation failed|Failed to upload package" "$RUNNER_TEMP/altool-upload.log"; then
+            echo "App Store Connect upload failed validation."
+            exit 1
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES_INPUT: ${{ github.event.inputs.release_notes }}
+        run: |
+          RELEASE_NOTES="$RELEASE_NOTES_INPUT"
+          if [ -z "$RELEASE_NOTES" ]; then
+            RELEASE_NOTES="Uploaded build ${BUILD_NUMBER} to TestFlight."
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$PKG_PATH" --clobber
+          else
+            gh release create "$TAG" "$PKG_PATH" \
+              --target "$GITHUB_SHA" \
+              --title "MenuMines $VERSION" \
+              --notes "$RELEASE_NOTES"
+          fi
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: TestResults.xcresult
+          retention-days: 7
 
       - name: Upload Archive Artifact
         uses: actions/upload-artifact@v4
@@ -201,24 +265,44 @@ jobs:
           path: ${{ env.ARCHIVE_PATH }}
           retention-days: 30
 
-      - name: Upload Exported Package
+      - name: Upload Package Artifact
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: MenuMines-${{ env.BUILD_NUMBER }}-AppStore
-          path: ${{ env.EXPORT_PATH }}
+          name: MenuMines-${{ env.VERSION }}-${{ env.BUILD_NUMBER }}
+          path: ${{ env.PKG_PATH }}
           retention-days: 30
 
-      # ── Cleanup ──
+      - name: Cleanup App Store Connect Signing Assets
+        if: always()
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          if [ -n "${ASC_API_KEY_PATH:-}" ] && [ -f "$ASC_API_KEY_PATH" ]; then
+            ruby Tools/app_store_connect_signing.rb cleanup
+          else
+            echo "No App Store Connect signing assets to clean up."
+          fi
 
       - name: Cleanup
         if: always()
         run: |
           security delete-keychain "$KEYCHAIN_NAME" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/certificate.p12"
-          rm -f "$RUNNER_TEMP/profile.provisionprofile"
+          rm -f "$RUNNER_TEMP/apple_distribution.key"
+          rm -f "$RUNNER_TEMP/apple_distribution.csr"
+          rm -f "$RUNNER_TEMP/apple_distribution.cer"
+          rm -f "$RUNNER_TEMP/apple_distribution.pem"
+          rm -f "$RUNNER_TEMP/apple_distribution.p12"
+          rm -f "$RUNNER_TEMP/mac_installer_distribution.key"
+          rm -f "$RUNNER_TEMP/mac_installer_distribution.csr"
+          rm -f "$RUNNER_TEMP/mac_installer_distribution.cer"
+          rm -f "$RUNNER_TEMP/mac_installer_distribution.pem"
+          rm -f "$RUNNER_TEMP/mac_installer_distribution.p12"
+          rm -f "$RUNNER_TEMP/mac.provisionprofile"
           rm -f "$RUNNER_TEMP/ExportOptions.plist"
           rm -rf ~/.private_keys
-          if [ -n "$PROFILE_UUID" ]; then
-            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.provisionprofile"
+          if [ -n "${APP_PROFILE_UUID:-}" ]; then
+            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$APP_PROFILE_UUID.provisionprofile"
           fi

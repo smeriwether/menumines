@@ -57,7 +57,9 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The `release.yml` workflow archives, signs, and uploads to App Store Connect.
+The `release.yml` workflow runs tests, creates temporary App Store signing assets through the App Store Connect API, archives, exports a signed `.pkg`, uploads it to App Store Connect/TestFlight, and attaches the package to a GitHub Release.
+
+You can also run the workflow manually from GitHub Actions and provide a version number.
 
 ### Direct Distribution Release
 
@@ -96,13 +98,9 @@ A few hard-won constraints to keep in mind when shipping outside the App Store:
 
 | Secret | Description |
 |--------|-------------|
-| `APPLE_CERTIFICATE_P12_BASE64` | Base64-encoded Apple Distribution certificate |
-| `APPLE_CERTIFICATE_PASSWORD` | Certificate password |
-| `PROVISIONING_PROFILE_BASE64` | Base64-encoded provisioning profile |
 | `ASC_API_KEY_P8_BASE64` | Base64-encoded App Store Connect API key (.p8) |
 | `ASC_KEY_ID` | App Store Connect API key ID |
 | `ASC_ISSUER_ID` | App Store Connect API issuer ID |
-| `APPLE_TEAM_ID` | Apple Developer Team ID |
 | `SENTRY_DSN` | Optional: Sentry DSN for error tracking |
 
 #### Direct Distribution (release-direct.yml)

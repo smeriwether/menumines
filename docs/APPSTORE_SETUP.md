@@ -1,132 +1,106 @@
-# App Store Distribution Setup
+# App Store and TestFlight Setup
 
-Instructions for configuring the GitHub Actions release pipeline to build and upload MenuMines to TestFlight.
+This repo is configured to publish the Mac App Store build of `MenuMines` to App Store Connect from GitHub Actions.
 
-## Prerequisites
+## Bundle ID
 
-- An Apple Developer account ($99/year) at https://developer.apple.com/programs/
-- Access to App Store Connect at https://appstoreconnect.apple.com
+Register this explicit App ID in the Apple Developer portal:
 
-## Step 1: Apple Developer Portal
+| Target | Bundle ID |
+| --- | --- |
+| macOS app | `com.merimerimeri.MenuMines` |
 
-Go to https://developer.apple.com/account/resources
+The App Store target reuses the existing App Store Connect app record and bundle identity: `com.merimerimeri.MenuMines`. The Direct/Sparkle target intentionally keeps the same existing direct-distribution identity so the App Store release remains the continuation of the current MenuMines app identity.
 
-### Register the App ID
+## App Store Connect
 
-1. Go to **Identifiers** → click **+**
-2. Select **App IDs** → **App**
-3. Enter description: `MenuMines`
-4. Bundle ID: **Explicit** → `com.merimerimeri.menumines`
-5. No additional capabilities needed (App Sandbox is handled via entitlements)
-6. Click **Register**
+Create one app record:
 
-### Create an Apple Distribution Certificate
+| Field | Value |
+| --- | --- |
+| Platform | `macOS` |
+| Name | `MenuMines` |
+| Bundle ID | `com.merimerimeri.MenuMines` |
+| SKU | `menumines` |
+| Primary category | `Utilities` |
+| Privacy Policy URL | `https://menumines.app/privacy.html` |
 
-1. Go to **Certificates** → click **+**
-2. Select **Apple Distribution**
-3. Follow the instructions to create a Certificate Signing Request (CSR) using Keychain Access:
-   - Open Keychain Access → Certificate Assistant → Request a Certificate from a Certificate Authority
-   - Enter your email, leave CA Email blank, select "Saved to disk"
-4. Upload the CSR and download the certificate
-5. Double-click to install it in your Keychain
+The App Store Connect category should match the Xcode category, which is `public.app-category.utilities`.
 
-### Export the Certificate as .p12
+## Apple Developer Assets
 
-1. Open **Keychain Access**
-2. Find the certificate named "Apple Distribution: ..." (under My Certificates)
-3. Right-click → **Export**
-4. Save as `.p12` format with a strong password — you'll need both the file and password later
+The release workflow creates temporary Apple Distribution and Mac Installer Distribution signing assets plus a Mac App Store provisioning profile through the App Store Connect API, then cleans them up after the run. The app archive is signed with Apple Distribution; the exported `.pkg` is signed with Mac Installer Distribution.
 
-### Create a Mac App Store Provisioning Profile
+## GitHub Secrets
 
-1. Go to **Profiles** → click **+**
-2. Select **Mac App Store** (under Distribution)
-3. Select App ID: `com.merimerimeri.menumines`
-4. Select your Apple Distribution certificate
-5. Name it something like `MenuMines Mac App Store`
-6. Download the `.provisionprofile` file
+Add these repository secrets to `smeriwether/menumines`:
 
-## Step 2: App Store Connect
+| Secret | Description |
+| --- | --- |
+| `ASC_API_KEY_P8_BASE64` | Base64-encoded App Store Connect API key `.p8` |
+| `ASC_KEY_ID` | App Store Connect API key ID |
+| `ASC_ISSUER_ID` | App Store Connect issuer ID |
+| `SENTRY_DSN` | Optional Sentry DSN for crash reporting |
 
-Go to https://appstoreconnect.apple.com
+The App Store Connect API key must be allowed to manage certificates, identifiers, profiles, and app uploads. Admin access is the least ambiguous option for first setup.
 
-### Create the App Record
+## Export Compliance
 
-1. Go to **My Apps** → click **+** → **New App**
-2. Platform: **macOS**
-3. Name: `MenuMines`
-4. Bundle ID: select `com.merimerimeri.menumines`
-5. SKU: `menumines` (or any unique string)
-6. Access: Full Access
+The App Store build declares `ITSAppUsesNonExemptEncryption = false` in `MenuMines/Info.plist`. This matches the current app behavior: MenuMines does not implement its own cryptography and only uses operating-system/network-stack encryption through linked services such as HTTPS.
 
-### Generate an API Key
+If future app code adds non-exempt encryption, update this key and answer the App Store Connect encryption documentation flow before uploading a release build.
 
-1. Go to **Users and Access** → **Integrations** → **App Store Connect API**
-2. Click **Generate API Key**
-3. Name: `GitHub Actions`
-4. Access: **App Manager** (minimum required role)
-5. Click **Generate**
-6. **Download the .p8 file immediately** — it can only be downloaded once
-7. Note the **Key ID** shown in the table
-8. Note the **Issuer ID** shown at the top of the page
+## Screenshots
 
-## Step 3: GitHub Repository Secrets
+Store polished macOS screenshots in `AppStoreScreenshots/`. Apple accepts macOS screenshots at 16:10 sizes such as `2880x1800`, `2560x1600`, `1440x900`, or `1280x800`.
 
-Go to your GitHub repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+To regenerate the current 2880x1800 screenshot set from the Debug-only exporter:
 
-Add these 8 secrets:
+```sh
+xcodebuild build -scheme MenuMines -destination 'platform=macOS' -configuration Debug CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY=""
+MENUMINES_EXPORT_APP_STORE_SCREENSHOTS=1 \
+  MENUMINES_SCREENSHOT_OUTPUT_DIR="$PWD/AppStoreScreenshots" \
+  ~/Library/Developer/Xcode/DerivedData/MenuMines-*/Build/Products/Debug/MenuMines.app/Contents/MacOS/MenuMines
+```
 
-| Secret Name | Value | How to Get It |
-|---|---|---|
-| `APPLE_CERTIFICATE_P12_BASE64` | Base64-encoded .p12 file | Run: `base64 -i YourCert.p12 \| pbcopy` |
-| `APPLE_CERTIFICATE_PASSWORD` | Password for the .p12 | The password you set during export |
-| `PROVISIONING_PROFILE_BASE64` | Base64-encoded .provisionprofile | Run: `base64 -i MenuMines.provisionprofile \| pbcopy` |
-| `APPLE_TEAM_ID` | 10-character Team ID | Apple Developer → Membership details |
-| `ASC_KEY_ID` | API Key ID | From Step 2 (shown in API keys table) |
-| `ASC_ISSUER_ID` | API Issuer ID | From Step 2 (shown at top of API keys page) |
-| `ASC_API_KEY_P8_BASE64` | Base64-encoded .p8 file | Run: `base64 -i AuthKey_XXXXXXXX.p8 \| pbcopy` |
-| `SENTRY_DSN` | Sentry DSN URL | From your Sentry project settings |
+Current initial set:
 
-## Step 4: Trigger a Release
+1. Fresh daily puzzle
+2. Puzzle in progress
+3. Completed daily result with share button
 
-### Option A: Push a tag
+## Release
 
-```bash
+Tag-based release:
+
+```sh
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-### Option B: Manual trigger
+Manual release:
 
-1. Go to GitHub → **Actions** tab
-2. Select **Release to TestFlight**
-3. Click **Run workflow**
+1. Open GitHub Actions.
+2. Run `Release to TestFlight`.
+3. Enter a version such as `1.0.0`.
 
-## Verification
+The workflow:
+
+1. Runs the local Xcode test suite.
+2. Creates temporary App Store signing assets.
+3. Archives the macOS app.
+4. Exports an App Store Connect `.pkg`.
+5. Uploads the `.pkg` to App Store Connect/TestFlight.
+6. Creates or updates the GitHub Release and attaches the `.pkg`.
+7. Cleans up temporary signing assets.
+
+## After Upload
 
 After the workflow completes:
 
-1. Check the GitHub Actions run for green status
-2. Go to App Store Connect → **TestFlight** → your build should appear within ~15 minutes
-3. Apple will process the build (can take up to an hour for first submission)
-4. Once processed, you can distribute to testers or submit for review
-
-## Troubleshooting
-
-### "No signing identity found"
-The certificate wasn't imported correctly. Verify the base64 encoding:
-```bash
-echo "$APPLE_CERTIFICATE_P12_BASE64" | base64 --decode > /tmp/test.p12
-file /tmp/test.p12  # should say "data"
-```
-
-### "No provisioning profile matching"
-The profile doesn't match the bundle ID or certificate. Re-create it in the Developer portal ensuring you select:
-- The correct App ID (`com.merimerimeri.menumines`)
-- The correct Apple Distribution certificate
-
-### "Unable to upload"
-Verify the App Store Connect API key has sufficient permissions (App Manager role) and the Key ID / Issuer ID are correct.
-
-### Build number conflicts
-Each TestFlight upload needs a unique build number. The workflow uses `github.run_number` which auto-increments. If you get a conflict, trigger another run.
+1. Check the GitHub Actions run for green status.
+2. Go to App Store Connect -> TestFlight and wait for the build to finish processing.
+3. Confirm the build is no longer blocked by export compliance.
+4. Add the build to the App Store version.
+5. Finish app metadata, screenshots, age rating, Content Rights, pricing, availability, and review contact information.
+6. Submit for review.

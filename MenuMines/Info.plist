@@ -8,5 +8,7 @@
 	<string>Copyright © 2026 MeriMeriMeri Software. All rights reserved.</string>
 	<key>SENTRY_DSN</key>
 	<string>$(SENTRY_DSN)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
