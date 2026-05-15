@@ -186,20 +186,20 @@ private enum AppStoreScreenshotVariant: String, CaseIterable {
     var title: String {
         switch self {
         case .daily:
-            return "A fresh puzzle every day"
+            return "Minesweeper in your menu bar"
         case .playing:
-            return "Minesweeper without leaving your work"
+            return "A quick puzzle, one click away"
         case .complete:
-            return "Finish once, then come back tomorrow"
+            return "Track the daily, then keep playing"
         }
     }
 
     var subtitle: String {
         switch self {
         case .daily:
-            return "The same 9x9 daily board for everyone, always one click away in the menu bar."
+            return "A new 9x9 board every day, with the same puzzle for everyone on Earth."
         case .playing:
-            return "Reveal cells, flag mines, and keep the board tucked into a compact macOS popover."
+            return "Reveal cells, flag mines, and keep the compact board tucked beside your work."
         case .complete:
             return "Daily results lock in after a win or loss, with local stats and a shareable grid."
         }
@@ -208,12 +208,70 @@ private enum AppStoreScreenshotVariant: String, CaseIterable {
     var accentColor: Color {
         switch self {
         case .daily:
-            return Color(red: 0.98, green: 0.76, blue: 0.25)
+            return ScreenshotStyle.indigo
         case .playing:
-            return Color(red: 0.37, green: 0.86, blue: 0.66)
+            return ScreenshotStyle.green
         case .complete:
-            return Color(red: 0.48, green: 0.72, blue: 1.0)
+            return ScreenshotStyle.purple
         }
+    }
+
+    var eyebrow: String {
+        switch self {
+        case .daily:
+            return "GLOBAL DAILY PUZZLE"
+        case .playing:
+            return "CONTINUOUS PLAY"
+        case .complete:
+            return "STATS & STREAKS"
+        }
+    }
+
+    var bullets: [String] {
+        switch self {
+        case .daily:
+            return ["Same daily board", "First click is safe", "No setup required"]
+        case .playing:
+            return ["Keyboard friendly", "Flag mode included", "Unlimited random boards"]
+        case .complete:
+            return ["Local stats", "Current and best streaks", "Shareable result grid"]
+        }
+    }
+}
+
+private enum ScreenshotStyle {
+    static let backgroundStart = Color(hex: 0x1A1A2E)
+    static let backgroundMiddle = Color(hex: 0x16213E)
+    static let backgroundEnd = Color(hex: 0x0F3460)
+    static let panel = Color(hex: 0x1E293B)
+    static let panelHeader = Color(hex: 0x374151)
+    static let panelBorder = Color(hex: 0x334155)
+    static let cellHiddenTop = Color(hex: 0x4A5568)
+    static let cellHiddenBottom = Color(hex: 0x2D3748)
+    static let cellHiddenHighlight = Color(hex: 0x718096)
+    static let cellHiddenShadow = Color(hex: 0x1A202C)
+    static let cellRevealed = Color(hex: 0xE2E8F0)
+    static let cellRevealedShadow = Color(hex: 0xCBD5E0)
+    static let textPrimary = Color(hex: 0xF3F4F6)
+    static let textSecondary = Color(hex: 0x9CA3AF)
+    static let textMuted = Color(hex: 0x6B7280)
+    static let indigo = Color(hex: 0x818CF8)
+    static let indigoDark = Color(hex: 0x667EEA)
+    static let purple = Color(hex: 0xC084FC)
+    static let green = Color(hex: 0x4ADE80)
+    static let blue = Color(hex: 0x60A5FA)
+    static let orange = Color(hex: 0xFB923C)
+    static let red = Color(hex: 0xDC2626)
+}
+
+private extension Color {
+    init(hex: UInt32, opacity: Double = 1) {
+        self.init(
+            red: Double((hex >> 16) & 0xff) / 255,
+            green: Double((hex >> 8) & 0xff) / 255,
+            blue: Double(hex & 0xff) / 255,
+            opacity: opacity
+        )
     }
 }
 
@@ -263,74 +321,92 @@ private struct AppStoreScreenshotCanvas: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.05, green: 0.12, blue: 0.13),
-                    Color(red: 0.05, green: 0.32, blue: 0.29),
-                    Color(red: 0.11, green: 0.13, blue: 0.17)
+                    ScreenshotStyle.backgroundStart,
+                    ScreenshotStyle.backgroundMiddle,
+                    ScreenshotStyle.backgroundEnd
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
             VStack(spacing: 0) {
-                screenshotMenuBar
+                screenshotHero
 
-                HStack(alignment: .center, spacing: 88) {
-                    copyBlock
-                        .frame(width: 560, alignment: .leading)
-
+                HStack(alignment: .center, spacing: 58) {
                     ScreenshotMenuSurface(variant: variant)
-                        .shadow(color: .black.opacity(0.36), radius: 34, x: 0, y: 24)
+                        .shadow(color: .black.opacity(0.44), radius: 38, x: 0, y: 24)
+
+                    copyBlock
+                        .frame(width: 520, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.horizontal, 92)
-                .padding(.bottom, 48)
+                .padding(.horizontal, 112)
+                .padding(.bottom, 74)
             }
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(ScreenshotStyle.textPrimary)
     }
 
-    private var screenshotMenuBar: some View {
-        HStack(spacing: 18) {
+    private var screenshotHero: some View {
+        VStack(spacing: 12) {
             Image(systemName: "square.grid.3x3.fill")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(variant.accentColor)
 
-            Text("MenuMines")
-                .font(.system(size: 17, weight: .semibold))
+            Text("MENU MINES")
+                .font(.system(size: 54, weight: .bold, design: .monospaced))
+                .foregroundStyle(ScreenshotStyle.indigo)
 
-            Spacer()
-
-            HStack(spacing: 12) {
-                Image(systemName: "wifi")
-                Image(systemName: "battery.100")
-                Text("9:41")
-                    .fontWeight(.semibold)
-            }
-            .font(.system(size: 15, weight: .medium))
-            .foregroundStyle(.white.opacity(0.76))
+            Text("A new puzzle every day.")
+                .font(.system(size: 22, weight: .medium, design: .monospaced))
+                .foregroundStyle(ScreenshotStyle.textSecondary)
         }
-        .padding(.horizontal, 28)
-        .frame(height: 44)
-        .background(.black.opacity(0.26))
+        .padding(.top, 52)
+        .frame(maxWidth: .infinity)
     }
 
     private var copyBlock: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("MenuMines")
-                .font(.system(size: 26, weight: .semibold, design: .rounded))
+        VStack(alignment: .leading, spacing: 22) {
+            Text(variant.eyebrow)
+                .font(.system(size: 15, weight: .bold, design: .monospaced))
                 .foregroundStyle(variant.accentColor)
 
             Text(variant.title)
-                .font(.system(size: 58, weight: .bold, design: .rounded))
+                .font(.system(size: 48, weight: .bold, design: .monospaced))
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(variant.subtitle)
-                .font(.system(size: 24, weight: .medium))
+                .font(.system(size: 22, weight: .medium, design: .monospaced))
                 .lineSpacing(6)
-                .foregroundStyle(.white.opacity(0.78))
+                .foregroundStyle(ScreenshotStyle.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(variant.bullets, id: \.self) { bullet in
+                    HStack(spacing: 10) {
+                        Text("✓")
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .foregroundStyle(ScreenshotStyle.green)
+                        Text(bullet)
+                            .font(.system(size: 18, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(ScreenshotStyle.textPrimary.opacity(0.9))
+                    }
+                }
+            }
+            .padding(.top, 4)
+
+            Text("No ads. No account. No clutter.")
+                .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                .foregroundStyle(ScreenshotStyle.textMuted)
+                .padding(.top, 2)
         }
+        .padding(34)
+        .background(ScreenshotStyle.panel.opacity(0.54), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(.white.opacity(0.10), lineWidth: 1)
+        )
     }
 }
 
@@ -369,13 +445,13 @@ private struct ScreenshotMenuSurface: View {
             )
         }
         .padding()
-        .frame(width: 300, height: 372, alignment: .top)
-        .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
+        .frame(width: 392, height: 520, alignment: .top)
+        .background(ScreenshotStyle.panel, in: RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(.white.opacity(0.28), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ScreenshotStyle.panelBorder, lineWidth: 3)
         )
-        .foregroundStyle(Color.primary)
+        .foregroundStyle(ScreenshotStyle.textPrimary)
     }
 }
 
@@ -388,6 +464,10 @@ private struct ScreenshotHeaderView: View {
     private var timeDisplay: String {
         let totalSeconds = Int(elapsedTime)
         return String(format: "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+    }
+
+    private var mineCounterDisplay: String {
+        String(format: "%03d", max(0, Board.mineCount - flagCount))
     }
 
     private var statusEmoji: String {
@@ -405,24 +485,30 @@ private struct ScreenshotHeaderView: View {
         HStack {
             HStack(spacing: 4) {
                 Text("🚩")
-                Text("\(flagCount)/\(Board.mineCount)")
-                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                Text(mineCounterDisplay)
+                    .font(.system(size: 15, weight: .semibold, design: .monospaced))
             }
-            .frame(minWidth: 60, alignment: .leading)
+            .frame(minWidth: 82, alignment: .leading)
 
             Spacer()
 
             Text(statusEmoji)
-                .font(.system(size: 24))
+                .font(.system(size: 28))
                 .opacity(canReset ? 1 : 0.75)
 
             Spacer()
 
             Text(timeDisplay)
-                .font(.system(size: 14, weight: .medium, design: .monospaced))
-                .frame(minWidth: 60, alignment: .trailing)
+                .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                .frame(minWidth: 82, alignment: .trailing)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 16)
+        .frame(height: 56)
+        .background(ScreenshotStyle.panelHeader, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(ScreenshotStyle.panelBorder.opacity(0.75), lineWidth: 1)
+        )
     }
 }
 
@@ -434,9 +520,9 @@ private struct ScreenshotGameBoardView: View {
     let isFlagMode: Bool
 
     var body: some View {
-        VStack(spacing: 1) {
+        VStack(spacing: 2) {
             ForEach(0..<Board.rows, id: \.self) { row in
-                HStack(spacing: 1) {
+                HStack(spacing: 2) {
                     ForEach(0..<Board.cols, id: \.self) { col in
                         ScreenshotCellView(
                             cell: board.cells[row][col],
@@ -451,7 +537,8 @@ private struct ScreenshotGameBoardView: View {
                 }
             }
         }
-        .background(Color(nsColor: .separatorColor))
+        .padding(12)
+        .background(ScreenshotStyle.panel.opacity(0.88), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func isChordReady(row: Int, col: Int) -> Bool {
@@ -472,7 +559,7 @@ private struct ScreenshotCellView: View {
     let isChordReady: Bool
     let isFlagMode: Bool
 
-    private static let cellSize: CGFloat = 28
+    private static let cellSize: CGFloat = 34
 
     var body: some View {
         ZStack {
@@ -491,9 +578,9 @@ private struct ScreenshotCellView: View {
     @ViewBuilder
     private var background: some View {
         if cell.isExploded {
-            Color.red
+            ScreenshotStyle.red
         } else if case .revealed = cell.state {
-            Color(red: 0.88, green: 0.89, blue: 0.87)
+            ScreenshotStyle.cellRevealed
         } else {
             ScreenshotRaisedCellBackground()
         }
@@ -528,28 +615,28 @@ private struct ScreenshotCellView: View {
     private var selectionBorder: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: 2)
-                .stroke(Color.accentColor, lineWidth: 2)
+                .stroke(ScreenshotStyle.indigoDark, lineWidth: 2)
         }
     }
 
     private func color(for adjacentMines: Int) -> Color {
         switch adjacentMines {
         case 1:
-            return Color(red: 0.0, green: 0.0, blue: 1.0)
+            return Color(hex: 0x3B82F6)
         case 2:
-            return Color(red: 0.0, green: 0.5, blue: 0.0)
+            return Color(hex: 0x22C55E)
         case 3:
-            return Color(red: 0.8, green: 0.0, blue: 0.0)
+            return Color(hex: 0xEF4444)
         case 4:
-            return Color(red: 0.0, green: 0.0, blue: 0.55)
+            return Color(hex: 0x1E40AF)
         case 5:
-            return Color(red: 0.55, green: 0.27, blue: 0.07)
+            return Color(hex: 0x92400E)
         case 6:
-            return Color(red: 0.0, green: 0.55, blue: 0.55)
+            return Color(hex: 0x0891B2)
         case 7:
-            return Color(red: 0.2, green: 0.2, blue: 0.2)
+            return Color(hex: 0x374151)
         case 8:
-            return Color(red: 0.5, green: 0.5, blue: 0.5)
+            return Color(hex: 0x6B7280)
         default:
             return .primary
         }
@@ -557,7 +644,7 @@ private struct ScreenshotCellView: View {
 }
 
 private struct ScreenshotRaisedCellBackground: View {
-    private let bevelWidth: CGFloat = 3
+    private let bevelWidth: CGFloat = 4
 
     var body: some View {
         GeometryReader { geometry in
@@ -565,7 +652,14 @@ private struct ScreenshotRaisedCellBackground: View {
             let inset = bevelWidth
 
             ZStack {
-                Color(red: 0.74, green: 0.76, blue: 0.74)
+                LinearGradient(
+                    colors: [
+                        ScreenshotStyle.cellHiddenTop,
+                        ScreenshotStyle.cellHiddenBottom
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
 
                 Path { path in
                     path.move(to: CGPoint(x: 0, y: size))
@@ -576,7 +670,7 @@ private struct ScreenshotRaisedCellBackground: View {
                     path.addLine(to: CGPoint(x: inset, y: size - inset))
                     path.closeSubpath()
                 }
-                .fill(Color.white.opacity(0.62))
+                .fill(ScreenshotStyle.cellHiddenHighlight.opacity(0.9))
 
                 Path { path in
                     path.move(to: CGPoint(x: size, y: 0))
@@ -587,8 +681,9 @@ private struct ScreenshotRaisedCellBackground: View {
                     path.addLine(to: CGPoint(x: size - inset, y: inset))
                     path.closeSubpath()
                 }
-                .fill(Color.black.opacity(0.34))
+                .fill(ScreenshotStyle.cellHiddenShadow.opacity(0.9))
             }
+            .clipShape(RoundedRectangle(cornerRadius: 3))
         }
     }
 }
@@ -620,13 +715,13 @@ private struct ScreenshotFooterView: View {
         HStack {
             if isGameComplete {
                 Text(String(localized: "share_button"))
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 5)
-                    .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+                    .background(ScreenshotStyle.panel.opacity(0.8), in: RoundedRectangle(cornerRadius: 6))
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                            .stroke(ScreenshotStyle.panelBorder, lineWidth: 1)
                     )
                     .fixedSize()
             } else {
@@ -637,23 +732,29 @@ private struct ScreenshotFooterView: View {
                         .font(.caption)
                         .fontWeight(.medium)
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ScreenshotStyle.textSecondary)
                 .fixedSize()
             }
 
             Spacer()
 
             Image(systemName: isFlagMode ? "flag.fill" : "flag")
-                .foregroundStyle(isFlagMode ? Color.accentColor : Color.primary)
+                .foregroundStyle(isFlagMode ? ScreenshotStyle.indigo : ScreenshotStyle.textPrimary)
 
             Image(systemName: "questionmark.circle")
-                .foregroundStyle(Color.primary)
+                .foregroundStyle(ScreenshotStyle.textPrimary)
 
             Image(systemName: "gearshape")
-                .foregroundStyle(Color.primary)
+                .foregroundStyle(ScreenshotStyle.textPrimary)
         }
-        .font(.system(size: 14))
-        .frame(width: 260)
+        .font(.system(size: 14, weight: .medium, design: .monospaced))
+        .padding(.horizontal, 16)
+        .frame(width: 360, height: 48)
+        .background(ScreenshotStyle.panelHeader, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(ScreenshotStyle.panelBorder.opacity(0.75), lineWidth: 1)
+        )
     }
 }
 

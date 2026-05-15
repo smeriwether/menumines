@@ -132,6 +132,39 @@ def find_or_create_bundle_id(client, identifier:, name:)
   created.fetch("data").fetch("id")
 end
 
+def ensure_bundle_id_capability(client, bundle_id:, capability_type:)
+  query = URI.encode_www_form(
+    "fields[bundleIdCapabilities]" => "capabilityType",
+    "limit" => 200
+  )
+  response = client.get("/v1/bundleIds/#{bundle_id}/bundleIdCapabilities?#{query}")
+  existing = response.fetch("data", []).find do |capability|
+    capability.fetch("attributes").fetch("capabilityType") == capability_type
+  end
+  return if existing
+
+  puts "Enabling #{capability_type} capability for Bundle ID"
+  client.post(
+    "/v1/bundleIdCapabilities",
+    {
+      data: {
+        type: "bundleIdCapabilities",
+        attributes: {
+          capabilityType: capability_type
+        },
+        relationships: {
+          bundleId: {
+            data: {
+              type: "bundleIds",
+              id: bundle_id
+            }
+          }
+        }
+      }
+    }
+  )
+end
+
 def create_certificate(client, temp_dir, certificate_type:, common_name:, prefix:)
   key_path = File.join(temp_dir, "#{prefix}.key")
   csr_path = File.join(temp_dir, "#{prefix}.csr")
@@ -263,6 +296,11 @@ def prepare
     client,
     identifier: app_bundle_identifier,
     name: "MenuMines"
+  )
+  ensure_bundle_id_capability(
+    client,
+    bundle_id: bundle_id,
+    capability_type: "GAME_CENTER"
   )
 
   certificate = create_distribution_certificate(client, temp_dir)

@@ -338,6 +338,11 @@
 				TargetAttributes = {
 					A100000F229E000F = {
 						CreatedOnToolsVersion = 15.0;
+						SystemCapabilities = {
+							com.apple.GameCenter = {
+								enabled = 1;
+							};
+						};
 					};
 					A100002F229E002F = {
 						CreatedOnToolsVersion = 15.0;

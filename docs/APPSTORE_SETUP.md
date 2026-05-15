@@ -31,6 +31,8 @@ The App Store Connect category should match the Xcode category, which is `public
 
 The release workflow creates temporary Apple Distribution and Mac Installer Distribution signing assets plus a Mac App Store provisioning profile through the App Store Connect API, then cleans them up after the run. The app archive is signed with Apple Distribution; the exported `.pkg` is signed with Mac Installer Distribution.
 
+The App Store build enables Game Center with the `com.apple.developer.game-center` entitlement. The release workflow ensures the `GAME_CENTER` capability is enabled on the Bundle ID before creating the temporary Mac App Store provisioning profile, so the signed app and profile stay aligned with App Store Connect.
+
 ## GitHub Secrets
 
 Add these repository secrets to `smeriwether/menumines`:
