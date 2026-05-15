@@ -133,10 +133,7 @@ def find_or_create_bundle_id(client, identifier:, name:)
 end
 
 def ensure_bundle_id_capability(client, bundle_id:, capability_type:)
-  query = URI.encode_www_form(
-    "fields[bundleIdCapabilities]" => "capabilityType",
-    "limit" => 200
-  )
+  query = URI.encode_www_form("fields[bundleIdCapabilities]" => "capabilityType")
   response = client.get("/v1/bundleIds/#{bundle_id}/bundleIdCapabilities?#{query}")
   existing = response.fetch("data", []).find do |capability|
     capability.fetch("attributes").fetch("capabilityType") == capability_type
